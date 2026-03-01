@@ -9,15 +9,14 @@ import com.voks.social.presentation.auth.LoginScreen
 import com.voks.social.presentation.auth.RegisterScreen
 import com.voks.social.presentation.auth.VerificationScreen
 import com.voks.social.presentation.auth.WelcomeScreen
+import com.voks.social.presentation.home.HomeScreen
 
-// AHORA LA PANTALLA DE INICIO ES WELCOME
 @Composable
 fun NavGraph(startDestination: String = Screen.Welcome.route) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = startDestination) {
 
-        // --- PANTALLA DE BIENVENIDA ---
         composable(route = Screen.Welcome.route) {
             WelcomeScreen(
                 onNavigateToRegister = { navController.navigate(Screen.Register.route) },
@@ -25,24 +24,30 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
-        // --- LOGIN ---
         composable(route = Screen.Login.route) {
             LoginScreen(
                 onNavigateToRegister = { navController.navigate(Screen.Register.route) },
-                onNavigateToHome = { /* TODO: Navegaremos al Feed en la Fase 7 */ },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                },
                 onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
             )
         }
 
-        // --- REGISTRO ---
         composable(route = Screen.Register.route) {
             RegisterScreen(
-                onNavigateToVerification = { navController.navigate(Screen.Verification.route) },
+                // RESTAURADO: Tras registro exitoso, vamos a la pantalla de Verificación
+                onNavigateToVerification = {
+                    navController.navigate(Screen.Verification.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
+                    }
+                },
                 onNavigateToLogin = { navController.popBackStack() }
             )
         }
 
-        // --- VERIFICACIÓN ---
         composable(route = Screen.Verification.route) {
             VerificationScreen(
                 onNavigateToLogin = {
@@ -53,11 +58,14 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
-        // --- OLVIDÉ CONTRASEÑA ---
         composable(route = Screen.ForgotPassword.route) {
             ForgotPasswordScreen(
                 onNavigateToLogin = { navController.popBackStack() }
             )
+        }
+
+        composable(route = Screen.Home.route) {
+            HomeScreen()
         }
     }
 }

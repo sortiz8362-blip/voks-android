@@ -3,10 +3,9 @@ package com.voks.social.presentation.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voks.social.core.utils.Resource
+import io.appwrite.models.User
 import com.voks.social.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.appwrite.models.Session
-import io.appwrite.models.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,81 +17,104 @@ class AuthViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<Resource<Session>?>(null)
-    val authState: StateFlow<Resource<Session>?> = _authState.asStateFlow()
-
-    private val _registerState = MutableStateFlow<Resource<User<Map<String, Any>>>?>(null)
-    val registerState: StateFlow<Resource<User<Map<String, Any>>>?> = _registerState.asStateFlow()
+    private val _authState = MutableStateFlow<Resource<Unit>?>(null)
+    val authState: StateFlow<Resource<Unit>?> = _authState.asStateFlow()
 
     private val _userState = MutableStateFlow<Resource<User<Map<String, Any>>>?>(null)
     val userState: StateFlow<Resource<User<Map<String, Any>>>?> = _userState.asStateFlow()
 
-    private val _verificationState = MutableStateFlow<Resource<Unit>?>(null)
-    val verificationState: StateFlow<Resource<Unit>?> = _verificationState.asStateFlow()
-
-    // NUEVO: Estado para la recuperación de contraseña
     private val _passwordRecoveryState = MutableStateFlow<Resource<Unit>?>(null)
     val passwordRecoveryState: StateFlow<Resource<Unit>?> = _passwordRecoveryState.asStateFlow()
 
-    fun login(email: String, password: String) {
-        viewModelScope.launch {
-            repository.login(email, password).collect { result ->
-                _authState.value = result
-            }
-        }
-    }
-
-    fun register(name: String, email: String, password: String) {
-        viewModelScope.launch {
-            repository.register(name, email, password).collect { result ->
-                _registerState.value = result
-            }
-        }
-    }
-
-    fun logout() {
-        viewModelScope.launch {
-            repository.logout().collect {
-                _authState.value = null
-                _userState.value = null
-            }
-        }
-    }
-
     fun checkUser() {
         viewModelScope.launch {
+            _userState.value = Resource.Loading
             repository.getUser().collect { result ->
                 _userState.value = result
             }
         }
     }
 
-    fun sendVerificationEmail() {
+    fun login(email: String, password: String) {
         viewModelScope.launch {
-            // Actualizado para usar tu nuevo subdominio
-            val redirectUrl = "https://voks.saov.page/"
-            repository.sendVerificationEmail(redirectUrl).collect { result ->
-                _verificationState.value = result
+            _authState.value = Resource.Loading
+
+            try {
+                repository.logout().collect { }
+            } catch (e: Exception) { /* Ignorar si no había sesión */ }
+
+            repository.login(email, password).collect { result ->
+                _authState.value = when (result) {
+                    is Resource.Success -> Resource.Success(Unit)
+                    is Resource.Error -> Resource.Error(result.message)
+                    is Resource.Loading -> Resource.Loading
+                }
             }
         }
     }
 
-    // NUEVO: Función para enviar el correo de recuperación
+    fun register(email: String, password: String, name: String) {
+        viewModelScope.launch {
+            _authState.value = Resource.Loading
+
+            try {
+                repository.logout().collect { }
+            } catch (e: Exception) { /* Ignorar si no había sesión */ }
+
+            // 1. Creamos la cuenta
+            repository.register(name = name, email = email, password = password).collect { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        // 2. Cuenta creada. Ahora DEBEMOS iniciar sesión para poder mandar el correo
+                        repository.login(email, password).collect { loginResult ->
+                            when (loginResult) {
+                                is Resource.Success -> {
+                                    // 3. Sesión iniciada. Ahora SÍ podemos enviar el correo de verificación
+                                    repository.sendVerificationEmail("https://voks.saov.page/").collect { verifyResult ->
+                                        _authState.value = verifyResult
+                                    }
+                                }
+                                is Resource.Error -> {
+                                    _authState.value = Resource.Error(loginResult.message)
+                                }
+                                is Resource.Loading -> {
+                                    // Mantenemos el estado de carga
+                                }
+                            }
+                        }
+                    }
+                    is Resource.Error -> {
+                        _authState.value = Resource.Error(result.message)
+                    }
+                    is Resource.Loading -> {
+                        _authState.value = Resource.Loading
+                    }
+                }
+            }
+        }
+    }
+
     fun sendPasswordRecoveryEmail(email: String) {
         viewModelScope.launch {
-            // Nota: Esta URL debería ser una página web que intercepte los parámetros "userId" y "secret"
-            // y permita al usuario escribir su nueva contraseña. Por ahora enviaremos al dominio base.
-            val redirectUrl = "https://voks.saov.page/reset-password"
-            repository.sendPasswordRecoveryEmail(email, redirectUrl).collect { result ->
+            _passwordRecoveryState.value = Resource.Loading
+            repository.sendPasswordRecoveryEmail(email, "https://voks.saov.page/reset-password").collect { result ->
                 _passwordRecoveryState.value = result
             }
         }
     }
 
+    fun logout() {
+        viewModelScope.launch {
+            try {
+                repository.logout().collect { }
+            } catch (e: Exception) { /* Ignorar */ }
+            _userState.value = null
+            _authState.value = null
+        }
+    }
+
     fun clearStates() {
         _authState.value = null
-        _registerState.value = null
-        _verificationState.value = null
-        _passwordRecoveryState.value = null // Limpiar también este estado
+        _passwordRecoveryState.value = null
     }
 }
