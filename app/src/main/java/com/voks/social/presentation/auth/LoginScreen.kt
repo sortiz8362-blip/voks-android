@@ -14,14 +14,14 @@ import com.voks.social.core.utils.Resource
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToRegister: () -> Unit,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit // NUEVO PARAMETRO
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     val authState by viewModel.authState.collectAsState()
 
-    // Corrección Fase 4: usamos clearStates()
     LaunchedEffect(authState) {
         if (authState is Resource.Success) {
             viewModel.clearStates()
@@ -54,7 +54,15 @@ fun LoginScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(modifier = Modifier.height(24.dp))
+
+        // NUEVO: Botón de "Olvidé mi contraseña" alineado a la derecha
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+            TextButton(onClick = onNavigateToForgotPassword) {
+                Text("¿Olvidaste tu contraseña?")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.login(email, password) },

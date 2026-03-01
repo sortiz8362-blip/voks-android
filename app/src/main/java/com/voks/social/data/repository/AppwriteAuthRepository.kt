@@ -52,7 +52,6 @@ class AppwriteAuthRepository @Inject constructor(
     override fun checkAuthStatus(): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading)
         try {
-            // Intenta obtener la cuenta actual. Si no hay sesión válida, lanza excepción.
             account.get()
             emit(Resource.Success(true))
         } catch (e: Exception) {
@@ -60,12 +59,9 @@ class AppwriteAuthRepository @Inject constructor(
         }
     }
 
-    // Novedades Fase 4: Seguridad y Verificación
-
     override fun getUser(): Flow<Resource<User<Map<String, Any>>>> = flow {
         emit(Resource.Loading)
         try {
-            // Obtiene todos los detalles del usuario actual, incluyendo si su email está verificado
             val user = account.get()
             emit(Resource.Success(user))
         } catch (e: Exception) {
@@ -76,11 +72,38 @@ class AppwriteAuthRepository @Inject constructor(
     override fun sendVerificationEmail(redirectUrl: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {
-            // Appwrite envía automáticamente el correo de verificación configurado en el proyecto
             account.createVerification(url = redirectUrl)
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Error al enviar el correo de verificación"))
+        }
+    }
+
+    // --- NUEVO: Recuperar Contraseña ---
+
+    override fun sendPasswordRecoveryEmail(email: String, redirectUrl: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Envía un email al usuario con un enlace que contiene "userId" y "secret"
+            account.createRecovery(email = email, url = redirectUrl)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al enviar el correo de recuperación"))
+        }
+    }
+
+    override fun confirmPasswordRecovery(userId: String, secret: String, newPassword: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Pasamos los parámetros de forma posicional para evitar errores de nombres no encontrados en el SDK
+            account.updateRecovery(
+                userId,
+                secret,
+                newPassword,
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al restablecer la contraseña"))
         }
     }
 }

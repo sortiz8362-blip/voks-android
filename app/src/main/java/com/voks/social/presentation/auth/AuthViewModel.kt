@@ -30,6 +30,10 @@ class AuthViewModel @Inject constructor(
     private val _verificationState = MutableStateFlow<Resource<Unit>?>(null)
     val verificationState: StateFlow<Resource<Unit>?> = _verificationState.asStateFlow()
 
+    // NUEVO: Estado para la recuperación de contraseña
+    private val _passwordRecoveryState = MutableStateFlow<Resource<Unit>?>(null)
+    val passwordRecoveryState: StateFlow<Resource<Unit>?> = _passwordRecoveryState.asStateFlow()
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             repository.login(email, password).collect { result ->
@@ -73,9 +77,22 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    // NUEVO: Función para enviar el correo de recuperación
+    fun sendPasswordRecoveryEmail(email: String) {
+        viewModelScope.launch {
+            // Nota: Esta URL debería ser una página web que intercepte los parámetros "userId" y "secret"
+            // y permita al usuario escribir su nueva contraseña. Por ahora enviaremos al dominio base.
+            val redirectUrl = "https://voks.saov.page/reset-password"
+            repository.sendPasswordRecoveryEmail(email, redirectUrl).collect { result ->
+                _passwordRecoveryState.value = result
+            }
+        }
+    }
+
     fun clearStates() {
         _authState.value = null
         _registerState.value = null
         _verificationState.value = null
+        _passwordRecoveryState.value = null // Limpiar también este estado
     }
 }
