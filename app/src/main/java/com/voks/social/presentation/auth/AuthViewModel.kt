@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.voks.social.core.utils.Resource
 import com.voks.social.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.appwrite.models.Session
+import io.appwrite.models.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,46 +18,64 @@ class AuthViewModel @Inject constructor(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<Resource<Unit>?>(null)
-    val authState: StateFlow<Resource<Unit>?> = _authState.asStateFlow()
+    private val _authState = MutableStateFlow<Resource<Session>?>(null)
+    val authState: StateFlow<Resource<Session>?> = _authState.asStateFlow()
 
-    // Nuevo estado para comprobar la sesión al inicio
-    private val _isUserLoggedIn = MutableStateFlow<Resource<Boolean>?>(null)
-    val isUserLoggedIn: StateFlow<Resource<Boolean>?> = _isUserLoggedIn.asStateFlow()
+    private val _registerState = MutableStateFlow<Resource<User<Map<String, Any>>>?>(null)
+    val registerState: StateFlow<Resource<User<Map<String, Any>>>?> = _registerState.asStateFlow()
 
-    fun checkAuthStatus() {
+    private val _userState = MutableStateFlow<Resource<User<Map<String, Any>>>?>(null)
+    val userState: StateFlow<Resource<User<Map<String, Any>>>?> = _userState.asStateFlow()
+
+    private val _verificationState = MutableStateFlow<Resource<Unit>?>(null)
+    val verificationState: StateFlow<Resource<Unit>?> = _verificationState.asStateFlow()
+
+    fun login(email: String, password: String) {
         viewModelScope.launch {
-            repository.checkAuthStatus().collect { result ->
-                _isUserLoggedIn.value = result
+            repository.login(email, password).collect { result ->
+                _authState.value = result
             }
         }
     }
 
-    fun login(email: String, clave: String) {
+    fun register(name: String, email: String, password: String) {
         viewModelScope.launch {
-            repository.login(email, clave).collect { result ->
-                when (result) {
-                    is Resource.Loading -> _authState.value = Resource.Loading
-                    is Resource.Success -> _authState.value = Resource.Success(Unit)
-                    is Resource.Error -> _authState.value = Resource.Error(result.message)
-                }
+            repository.register(name, email, password).collect { result ->
+                _registerState.value = result
             }
         }
     }
 
-    fun register(name: String, email: String, clave: String) {
+    fun logout() {
         viewModelScope.launch {
-            repository.register(name, email, clave).collect { result ->
-                when (result) {
-                    is Resource.Loading -> _authState.value = Resource.Loading
-                    is Resource.Success -> _authState.value = Resource.Success(Unit)
-                    is Resource.Error -> _authState.value = Resource.Error(result.message)
-                }
+            repository.logout().collect {
+                _authState.value = null
+                _userState.value = null
             }
         }
     }
 
-    fun resetAuthState() {
+    fun checkUser() {
+        viewModelScope.launch {
+            repository.getUser().collect { result ->
+                _userState.value = result
+            }
+        }
+    }
+
+    fun sendVerificationEmail() {
+        viewModelScope.launch {
+            // Actualizado para usar tu nuevo subdominio
+            val redirectUrl = "https://voks.saov.page/"
+            repository.sendVerificationEmail(redirectUrl).collect { result ->
+                _verificationState.value = result
+            }
+        }
+    }
+
+    fun clearStates() {
         _authState.value = null
+        _registerState.value = null
+        _verificationState.value = null
     }
 }

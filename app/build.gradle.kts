@@ -75,6 +75,9 @@ dependencies {
     // 4. Coil (Carga de imágenes optimizada)
     implementation(libs.coil.compose)
 
+    // Splash Screen para la carga inicial
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

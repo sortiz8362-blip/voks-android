@@ -9,42 +9,61 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.voks.social.presentation.auth.LoginScreen
 import com.voks.social.presentation.auth.RegisterScreen
+import com.voks.social.presentation.auth.VerificationScreen
 
 @Composable
 fun NavGraph(
-    navController: NavHostController,
-    startDestination: String = Screen.Login.route // Hacemos la ruta inicial dinámica
+    navController: NavHostController = rememberNavController(),
+    startDestination: String = Screen.Login.route
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(route = Screen.Login.route) {
+        composable(Screen.Login.route) {
             LoginScreen(
-                onNavigateToHome = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                },
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
+                },
+                onNavigateToHome = {
+                    // Al loguearse, obligamos a pasar por VerificationScreen.
+                    // Si ya está verificado, la pantalla hará un salto automático al Home.
+                    navController.navigate(Screen.Verification.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 }
             )
         }
-
-        composable(route = Screen.Register.route) {
+        composable(Screen.Register.route) {
             RegisterScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
                 }
             )
         }
-
-        composable(route = Screen.Home.route) {
+        composable(Screen.Verification.route) {
+            VerificationScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0)
+                    }
+                },
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0)
+                    }
+                }
+            )
+        }
+        composable(Screen.Home.route) {
+            // Pantalla temporal hasta que construyamos el Feed en las próximas fases
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Pantalla Principal - Feed de voks")
+                Text(text = "Bienvenido a voks Home (Feed Próximamente)")
             }
         }
     }

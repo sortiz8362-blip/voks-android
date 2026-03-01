@@ -59,4 +59,28 @@ class AppwriteAuthRepository @Inject constructor(
             emit(Resource.Success(false))
         }
     }
+
+    // Novedades Fase 4: Seguridad y Verificación
+
+    override fun getUser(): Flow<Resource<User<Map<String, Any>>>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Obtiene todos los detalles del usuario actual, incluyendo si su email está verificado
+            val user = account.get()
+            emit(Resource.Success(user))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al obtener datos del usuario"))
+        }
+    }
+
+    override fun sendVerificationEmail(redirectUrl: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Appwrite envía automáticamente el correo de verificación configurado en el proyecto
+            account.createVerification(url = redirectUrl)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al enviar el correo de verificación"))
+        }
+    }
 }

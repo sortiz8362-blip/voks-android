@@ -1,7 +1,8 @@
 package com.voks.social.navigation
 
 sealed class Screen(val route: String) {
-    object Login : Screen("login_screen")
-    object Register : Screen("register_screen")
-    object Home : Screen("home_screen")
+    object Login : Screen("login")
+    object Register : Screen("register")
+    object Verification : Screen("verification") // Agregado para Fase 4
+    object Home : Screen("home")
 }
