@@ -1,102 +1,78 @@
 package com.voks.social.presentation.auth
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.voks.social.core.utils.Resource
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun VerificationScreen(
-    viewModel: AuthViewModel = hiltViewModel(),
-    onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit
+    // CORRECCIÓN: Hemos eliminado el viewModel que no se usaba
+    onNavigateToLogin: () -> Unit
 ) {
-    val userState by viewModel.userState.collectAsState()
-    val verificationState by viewModel.verificationState.collectAsState()
-
-    // Al entrar a la pantalla, revisamos el estado actual del usuario
-    LaunchedEffect(Unit) {
-        viewModel.checkUser()
-    }
-
-    // Escuchamos activamente si el usuario ya verificó su cuenta
-    LaunchedEffect(userState) {
-        if (userState is Resource.Success) {
-            val user = (userState as Resource.Success).data
-            if (user.emailVerification) {
-                onNavigateToHome()
-            }
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Verifica tu correo",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Te hemos enviado un enlace mágico a tu correo electrónico. Haz clic en él para verificar tu cuenta de voks.",
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = { viewModel.checkUser() },
-            modifier = Modifier.fillMaxWidth()
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Ya lo verifiqué")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = { viewModel.sendVerificationEmail() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Reenviar correo")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(
-            onClick = {
-                viewModel.logout()
-                onNavigateToLogin()
-            }
-        ) {
-            Text("Cerrar sesión")
-        }
-
-        // Feedback del estado del envío
-        when (verificationState) {
-            is Resource.Loading -> CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
-            is Resource.Success -> Text(
-                "¡Correo enviado con éxito!",
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 16.dp)
+            Icon(
+                imageVector = Icons.Default.Email,
+                contentDescription = "Email verification",
+                modifier = Modifier.size(80.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            is Resource.Error -> Text(
-                "Error: ${(verificationState as Resource.Error).message}",
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 16.dp)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Revisa tu correo",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 28.sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
             )
-            else -> {}
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Te hemos enviado un enlace de verificación. Haz clic en él para activar tu cuenta de voks de forma segura.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Button(
+                onClick = onNavigateToLogin,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onBackground,
+                    contentColor = MaterialTheme.colorScheme.background
+                )
+            ) {
+                Text("Volver al inicio de sesión", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
         }
     }
 }

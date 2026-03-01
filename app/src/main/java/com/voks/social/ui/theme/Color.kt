@@ -2,10 +2,12 @@ package com.voks.social.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Paleta principal de voks (Inspiración X)
+val VoksBlue = Color(0xFF1D9BF0) // Azul vibrante para botones y acentos
+val VoksBlack = Color(0xFF000000) // Fondo puro para modo oscuro
+val VoksDarkGray = Color(0xFF16181C) // Superficies en modo oscuro
+val VoksLightGray = Color(0xFFEFF3F4) // Superficies en modo claro
+val VoksDarkText = Color(0xFF71767B) // Texto secundario oscuro
+val VoksLightText = Color(0xFF536471) // Texto secundario claro
+val VoksWhite = Color(0xFFFFFFFF) // Fondo puro para modo claro
+val VoksError = Color(0xFFF4212E) // Rojo para errores

@@ -45,16 +45,17 @@ class MainActivity : ComponentActivity() {
                         val isVerified = (userState as Resource.Success).data.emailVerification
                         if (isVerified) Screen.Home.route else Screen.Verification.route
                     }
-                    is Resource.Error -> Screen.Login.route
-                    else -> Screen.Login.route
+                    // AHORA: Si hay error (no hay sesión), lo mandamos a Welcome
+                    is Resource.Error -> Screen.Welcome.route
+                    else -> Screen.Welcome.route
                 }
 
                 // Solo renderizamos la navegación si ya obtuvimos una respuesta
                 if (userState !is Resource.Loading && userState != null) {
                     NavGraph(startDestination = startDestination)
                 } else if (userState is Resource.Error || userState == null) {
-                    // Fallback de seguridad en caso de inicio sin sesión
-                    NavGraph(startDestination = Screen.Login.route)
+                    // AHORA: Fallback de seguridad a Welcome
+                    NavGraph(startDestination = Screen.Welcome.route)
                 }
             }
         }
