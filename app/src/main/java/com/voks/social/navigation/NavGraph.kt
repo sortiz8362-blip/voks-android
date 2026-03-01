@@ -10,6 +10,7 @@ import com.voks.social.presentation.auth.RegisterScreen
 import com.voks.social.presentation.auth.VerificationScreen
 import com.voks.social.presentation.auth.WelcomeScreen
 import com.voks.social.presentation.home.HomeScreen
+import com.voks.social.presentation.post.CreatePostScreen
 
 @Composable
 fun NavGraph(startDestination: String = Screen.Welcome.route) {
@@ -38,7 +39,6 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
 
         composable(route = Screen.Register.route) {
             RegisterScreen(
-                // RESTAURADO: Tras registro exitoso, vamos a la pantalla de Verificación
                 onNavigateToVerification = {
                     navController.navigate(Screen.Verification.route) {
                         popUpTo(Screen.Welcome.route) { inclusive = false }
@@ -64,8 +64,24 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
+        // --- CORRECCIÓN AQUÍ: Pasamos los dos parámetros requeridos ---
         composable(route = Screen.Home.route) {
-            HomeScreen()
+            HomeScreen(
+                onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        // Limpiamos todo el historial al cerrar sesión
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // FASE 7: Pantalla para crear un nuevo Post
+        composable(route = Screen.CreatePost.route) {
+            CreatePostScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

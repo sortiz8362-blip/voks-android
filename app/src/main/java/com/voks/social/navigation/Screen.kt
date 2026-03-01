@@ -6,5 +6,8 @@ sealed class Screen(val route: String) {
     data object Register : Screen("register")
     data object Verification : Screen("verification")
     data object ForgotPassword : Screen("forgot_password")
-    data object Home : Screen("home") // Preparado para la Fase 7
+    data object Home : Screen("home")
+
+    // NUEVA RUTA PARA LA FASE 7: Pantalla para redactar una publicación
+    data object CreatePost : Screen("create_post")
 }
