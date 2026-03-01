@@ -28,8 +28,6 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "followers" to user.followers,
                 "following" to user.following
             )
-            // Usamos el ID de autenticación del usuario como su Document ID en la base de datos
-            // Esto permite que las búsquedas sean instantáneas (O(1)).
             databases.createDocument(
                 databaseId = Constants.DATABASE_ID,
                 collectionId = Constants.USERS_COLLECTION_ID,
@@ -91,7 +89,6 @@ class AppwriteDatabaseRepository @Inject constructor(
     override fun getPosts(): Flow<Resource<List<Post>>> = flow {
         emit(Resource.Loading)
         try {
-            // Traemos los posts ordenados por fecha descendente (los más nuevos primero)
             val result = databases.listDocuments(
                 databaseId = Constants.DATABASE_ID,
                 collectionId = Constants.POSTS_COLLECTION_ID,
@@ -115,7 +112,6 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
-    // --- REGLA INQUEBRANTABLE: CHAT PRIVADO 1 A 1 ---
     override fun sendMessage(message: Message): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {
@@ -140,15 +136,13 @@ class AppwriteDatabaseRepository @Inject constructor(
     override fun getMessages(user1Id: String, user2Id: String): Flow<Resource<List<Message>>> = flow {
         emit(Resource.Loading)
         try {
-            // Buscamos cualquier mensaje donde sender y receiver coincidan con los 2 IDs.
-            // Esto aísla por completo el chat para que sea privado.
             val result = databases.listDocuments(
                 databaseId = Constants.DATABASE_ID,
                 collectionId = Constants.MESSAGES_COLLECTION_ID,
                 queries = listOf(
                     Query.equal("senderId", listOf(user1Id, user2Id)),
                     Query.equal("receiverId", listOf(user1Id, user2Id)),
-                    Query.orderAsc("\$createdAt") // Ordenamos desde el más viejo arriba al más nuevo abajo
+                    Query.orderAsc("\$createdAt")
                 )
             )
 

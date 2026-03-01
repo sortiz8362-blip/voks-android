@@ -7,13 +7,13 @@ object Constants {
     // Endpoint de Appwrite Cloud
     const val APPWRITE_ENDPOINT = "https://sfo.cloud.appwrite.io/v1"
 
-    // TODO: Reemplaza estos valores con los IDs reales de tu consola de Appwrite
+    // IDs de Base de Datos y Colecciones
     const val DATABASE_ID = "69a43cb0002544e39511"
-
-    // IDs de las Colecciones
     const val USERS_COLLECTION_ID = "users"
     const val POSTS_COLLECTION_ID = "posts"
-
-    // Nueva colección exclusiva para mensajería privada 1 a 1
     const val MESSAGES_COLLECTION_ID = "messages"
+
+    // NUEVO FASE 8: ID del Bucket de Storage para las imágenes de los posts
+    // TODO: Reemplaza este valor con el ID real de tu Bucket "Post Images"
+    const val POST_IMAGES_BUCKET_ID = "69a4a3d400051688ae72"
 }

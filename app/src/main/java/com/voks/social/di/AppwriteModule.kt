@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import io.appwrite.Client
 import io.appwrite.services.Account
 import io.appwrite.services.Databases
+import io.appwrite.services.Storage
 import javax.inject.Singleton
 
 @Module
@@ -30,10 +31,16 @@ object AppwriteModule {
         return Account(client)
     }
 
-    // NUEVO: Proveedor del servicio de Bases de Datos
     @Provides
     @Singleton
     fun provideAppwriteDatabases(client: Client): Databases {
         return Databases(client)
+    }
+
+    // AQUI ESTÁ LA SOLUCIÓN: Hilt ya sabe cómo inyectar Storage
+    @Provides
+    @Singleton
+    fun provideAppwriteStorage(client: Client): Storage {
+        return Storage(client)
     }
 }
