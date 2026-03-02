@@ -43,6 +43,11 @@ fun ProfileScreen(
     val userPostsState by viewModel.userPosts.collectAsState()
     val updateProfileState by viewModel.updateProfileState.collectAsState()
 
+    // FASE 11: Estados locales de seguimiento
+    val isCurrentUser by viewModel.isCurrentUser.collectAsState()
+    val isFollowing by viewModel.isFollowing.collectAsState()
+    val followActionState by viewModel.followActionState.collectAsState()
+
     var showEditDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -54,6 +59,12 @@ fun ProfileScreen(
         } else if (updateProfileState is Resource.Error) {
             Toast.makeText(context, (updateProfileState as Resource.Error).message, Toast.LENGTH_SHORT).show()
             viewModel.resetUpdateState()
+        }
+    }
+
+    LaunchedEffect(followActionState) {
+        if (followActionState is Resource.Error) {
+            Toast.makeText(context, (followActionState as Resource.Error).message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -147,14 +158,41 @@ fun ProfileScreen(
                             }
                         }
 
-                        // Info y Botón de Editar
+                        // Info y Botones (Editar o Seguir)
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                OutlinedButton(onClick = { showEditDialog = true }) {
-                                    Text("Editar Perfil")
+                                // FASE 11: Renderizado condicional del botón de la derecha
+                                if (isCurrentUser) {
+                                    OutlinedButton(onClick = { showEditDialog = true }) {
+                                        Text("Editar Perfil")
+                                    }
+                                } else {
+                                    val isFollowLoading = followActionState is Resource.Loading
+                                    if (isFollowing) {
+                                        OutlinedButton(
+                                            onClick = { viewModel.toggleFollow() },
+                                            enabled = !isFollowLoading,
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        ) {
+                                            Text(if (isFollowLoading) "Cargando..." else "Siguiendo")
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = { viewModel.toggleFollow() },
+                                            enabled = !isFollowLoading,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        ) {
+                                            Text(if (isFollowLoading) "Cargando..." else "Seguir")
+                                        }
+                                    }
                                 }
                             }
 
@@ -184,7 +222,7 @@ fun ProfileScreen(
                                     Text(text = "Seguidores", color = Color.Gray)
                                 }
                             }
-                            Divider(modifier = Modifier.padding(top = 16.dp))
+                            HorizontalDivider(modifier = Modifier.padding(top = 16.dp))
                         }
 
                         // Feed del usuario
@@ -201,14 +239,13 @@ fun ProfileScreen(
                                 if (posts.isEmpty()) {
                                     item {
                                         Text(
-                                            "No has publicado nada aún.",
+                                            "Aún no hay publicaciones aquí.",
                                             modifier = Modifier.fillMaxWidth().padding(32.dp),
                                             color = Color.Gray
                                         )
                                     }
                                 } else {
                                     items(posts) { post ->
-                                        // Corregido: Pasamos el objeto 'user' completo como espera PostUiItem
                                         PostCard(
                                             postItem = PostUiItem(
                                                 post = post,
@@ -279,7 +316,6 @@ fun EditProfileDialog(
                 Text("Editar Perfil", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Selector de Banner
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -296,7 +332,6 @@ fun EditProfileDialog(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    // Icono corregido a Edit
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Cambiar Banner",
@@ -307,7 +342,6 @@ fun EditProfileDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Selector de Avatar
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -323,7 +357,6 @@ fun EditProfileDialog(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    // Icono corregido a Edit
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Cambiar Avatar",

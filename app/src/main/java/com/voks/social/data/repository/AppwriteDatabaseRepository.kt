@@ -24,7 +24,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "username" to user.username,
                 "email" to user.email,
                 "profilePictureUrl" to user.profilePictureUrl,
-                "bannerUrl" to user.bannerUrl, // AÑADIDO: Guardar banner
+                "bannerUrl" to user.bannerUrl,
                 "bio" to user.bio,
                 "followers" to user.followers,
                 "following" to user.following
@@ -55,7 +55,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 username = data["username"]?.toString() ?: "",
                 email = data["email"]?.toString() ?: "",
                 profilePictureUrl = data["profilePictureUrl"]?.toString() ?: "",
-                bannerUrl = data["bannerUrl"]?.toString() ?: "", // AÑADIDO: Recuperar banner
+                bannerUrl = data["bannerUrl"]?.toString() ?: "",
                 bio = data["bio"]?.toString() ?: "",
                 followers = (data["followers"] as? List<*>)?.map { it.toString() } ?: emptyList(),
                 following = (data["following"] as? List<*>)?.map { it.toString() } ?: emptyList(),
@@ -67,7 +67,6 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
-    // NUEVO FASE 10: Implementación para actualizar solo los campos modificados
     override fun updateUser(userId: String, data: Map<String, Any>): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {
@@ -82,6 +81,76 @@ class AppwriteDatabaseRepository @Inject constructor(
             emit(Resource.Error(e.message ?: "Error al actualizar el perfil"))
         }
     }
+
+    // --- NUEVO FASE 11: Lógica de conexiones ---
+    override fun followUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            // 1. Actualizar mi lista de "following"
+            val currentUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, currentUserId)
+            val currentFollowing = (currentUserDoc.data["following"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+            if (!currentFollowing.contains(targetUserId)) {
+                currentFollowing.add(targetUserId)
+                databases.updateDocument(
+                    databaseId = Constants.DATABASE_ID,
+                    collectionId = Constants.USERS_COLLECTION_ID,
+                    documentId = currentUserId,
+                    data = mapOf("following" to currentFollowing)
+                )
+            }
+
+            // 2. Actualizar la lista de "followers" del perfil objetivo
+            val targetUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, targetUserId)
+            val targetFollowers = (targetUserDoc.data["followers"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+            if (!targetFollowers.contains(currentUserId)) {
+                targetFollowers.add(currentUserId)
+                databases.updateDocument(
+                    databaseId = Constants.DATABASE_ID,
+                    collectionId = Constants.USERS_COLLECTION_ID,
+                    documentId = targetUserId,
+                    data = mapOf("followers" to targetFollowers)
+                )
+            }
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al seguir al usuario"))
+        }
+    }
+
+    override fun unfollowUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            // 1. Quitar al usuario de mi lista de "following"
+            val currentUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, currentUserId)
+            val currentFollowing = (currentUserDoc.data["following"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+            if (currentFollowing.contains(targetUserId)) {
+                currentFollowing.remove(targetUserId)
+                databases.updateDocument(
+                    databaseId = Constants.DATABASE_ID,
+                    collectionId = Constants.USERS_COLLECTION_ID,
+                    documentId = currentUserId,
+                    data = mapOf("following" to currentFollowing)
+                )
+            }
+
+            // 2. Quitarme de su lista de "followers"
+            val targetUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, targetUserId)
+            val targetFollowers = (targetUserDoc.data["followers"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+            if (targetFollowers.contains(currentUserId)) {
+                targetFollowers.remove(currentUserId)
+                databases.updateDocument(
+                    databaseId = Constants.DATABASE_ID,
+                    collectionId = Constants.USERS_COLLECTION_ID,
+                    documentId = targetUserId,
+                    data = mapOf("followers" to targetFollowers)
+                )
+            }
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al dejar de seguir al usuario"))
+        }
+    }
+    // ---------------------------------------------
 
     override fun createPost(post: Post): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)

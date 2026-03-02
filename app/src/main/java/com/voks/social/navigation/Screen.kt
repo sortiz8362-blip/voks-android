@@ -7,8 +7,12 @@ sealed class Screen(val route: String) {
     data object Verification : Screen("verification")
     data object ForgotPassword : Screen("forgot_password")
     data object Home : Screen("home")
-
-    // NUEVA RUTA PARA LA FASE 7: Pantalla para redactar una publicación
     data object CreatePost : Screen("create_post")
-    data object Profile : Screen("profile_screen") // NUEVO FASE 10
+
+    // NUEVO FASE 11: Ruta dinámica para perfiles de otros usuarios
+    data object Profile : Screen("profile_screen?userId={userId}") {
+        fun createRoute(userId: String? = null): String {
+            return if (userId != null) "profile_screen?userId=$userId" else "profile_screen"
+        }
+    }
 }

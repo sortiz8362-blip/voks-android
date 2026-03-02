@@ -1,9 +1,11 @@
 package com.voks.social.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.voks.social.presentation.auth.ForgotPasswordScreen
 import com.voks.social.presentation.auth.LoginScreen
 import com.voks.social.presentation.auth.RegisterScreen
@@ -11,7 +13,7 @@ import com.voks.social.presentation.auth.VerificationScreen
 import com.voks.social.presentation.auth.WelcomeScreen
 import com.voks.social.presentation.home.HomeScreen
 import com.voks.social.presentation.post.CreatePostScreen
-import com.voks.social.presentation.profile.ProfileScreen // AÑADIDO
+import com.voks.social.presentation.profile.ProfileScreen
 
 @Composable
 fun NavGraph(startDestination: String = Screen.Welcome.route) {
@@ -68,7 +70,10 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
         composable(route = Screen.Home.route) {
             HomeScreen(
                 onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) }, // AÑADIDO
+                onNavigateToProfile = { userId ->
+                    // FASE 11: Pasamos el ID del usuario al navegar
+                    navController.navigate(Screen.Profile.createRoute(userId))
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -83,8 +88,15 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
-        // NUEVO FASE 10: Ruta del perfil (le pasamos el navController completo temporalmente)
-        composable(route = Screen.Profile.route) {
+        // NUEVO FASE 11: Soporte para argumentos en la ruta del perfil
+        composable(
+            route = Screen.Profile.route,
+            arguments = listOf(navArgument("userId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) {
             ProfileScreen(
                 navController = navController
             )

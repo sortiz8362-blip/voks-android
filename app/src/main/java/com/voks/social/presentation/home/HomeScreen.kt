@@ -33,11 +33,10 @@ import com.voks.social.core.utils.Resource
 @Composable
 fun HomeScreen(
     onNavigateToCreatePost: () -> Unit,
-    onNavigateToProfile: () -> Unit, // NUEVO FASE 10: Navegar al perfil
+    onNavigateToProfile: (String?) -> Unit, // FASE 11: Ahora recibe un String opcional
     onLogout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    // Escuchamos el estado del feed en tiempo real
     val feedState by viewModel.feedState.collectAsState()
 
     Scaffold(
@@ -51,16 +50,15 @@ fun HomeScreen(
                     )
                 },
                 navigationIcon = {
-                    // Botón temporal para ir al perfil
-                    IconButton(onClick = onNavigateToProfile) {
+                    // FASE 11: Navegar a NUESTRO perfil enviando "null"
+                    IconButton(onClick = { onNavigateToProfile(null) }) {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "Ir al Perfil"
+                            contentDescription = "Ir a mi Perfil"
                         )
                     }
                 },
                 actions = {
-                    // Botón para recargar el feed manualmente
                     IconButton(onClick = { viewModel.refreshFeed() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -68,7 +66,6 @@ fun HomeScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
-                    // Botón para cerrar sesión
                     IconButton(onClick = onLogout) {
                         Icon(
                             imageVector = Icons.Default.ExitToApp,
@@ -80,7 +77,6 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            // Botón flotante para crear un nuevo post
             FloatingActionButton(
                 onClick = onNavigateToCreatePost,
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -97,12 +93,10 @@ fun HomeScreen(
         ) {
             when (val state = feedState) {
                 is Resource.Loading -> {
-                    // Muestra un círculo de carga mientras descarga los datos
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is Resource.Success -> {
                     if (state.data.isEmpty()) {
-                        // Mensaje si no hay publicaciones en la base de datos
                         Text(
                             text = "Aún no hay publicaciones.\n¡Sé el primero en escribir algo!",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -110,22 +104,21 @@ fun HomeScreen(
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     } else {
-                        // Lista reciclable (Scroll infinito)
                         LazyColumn(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.data) { postItem ->
                                 PostCard(
                                     postItem = postItem,
-                                    onPostClick = { /* Fase Futura: Ir a detalle del post */ },
-                                    onUserClick = { _ -> /* Fase Futura: Ir al perfil del usuario */ }
+                                    onPostClick = { /* Fase Futura */ },
+                                    // FASE 11: Pasamos el ID del usuario al que le damos clic
+                                    onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) }
                                 )
                             }
                         }
                     }
                 }
                 is Resource.Error -> {
-                    // Muestra el error si algo falla (ej. sin internet)
                     Text(
                         text = "Error: ${state.message}",
                         color = MaterialTheme.colorScheme.error,
