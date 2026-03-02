@@ -13,7 +13,10 @@ object Constants {
     const val POSTS_COLLECTION_ID = "posts"
     const val MESSAGES_COLLECTION_ID = "messages"
 
-    // NUEVO FASE 8: ID del Bucket de Storage para las imágenes de los posts
-    // TODO: Reemplaza este valor con el ID real de tu Bucket "Post Images"
+    // IDs de los Buckets de Storage
     const val POST_IMAGES_BUCKET_ID = "69a4a3d400051688ae72"
+
+    // NUEVO FASE 10: ID del Bucket de Storage para las imágenes de perfil
+    // TODO: Reemplaza este valor con el ID real de tu Bucket "Profile Images"
+    const val PROFILE_IMAGES_BUCKET_ID = "69a4f5e60013e5c151c8"
 }

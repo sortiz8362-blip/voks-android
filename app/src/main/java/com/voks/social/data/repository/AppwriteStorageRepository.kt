@@ -19,22 +19,24 @@ import javax.inject.Inject
 
 class AppwriteStorageRepository @Inject constructor(
     private val storage: Storage,
-    @ApplicationContext private val context: Context // <-- CORRECCIÓN: Etiqueta de Hilt agregada
+    @ApplicationContext private val context: Context
 ) : StorageRepository {
 
-    override suspend fun uploadMedia(uri: Uri): Resource<String> = withContext(Dispatchers.IO) {
+    // FASE 10: Agregamos el bucketId como parámetro dinámico
+    override suspend fun uploadMedia(uri: Uri, bucketId: String): Resource<String> = withContext(Dispatchers.IO) {
         try {
             val file = uriToFile(uri) ?: return@withContext Resource.Error("No se pudo procesar el archivo multimedia")
 
             val inputFile = InputFile.fromFile(file)
 
             val uploadedFile = storage.createFile(
-                bucketId = Constants.POST_IMAGES_BUCKET_ID,
+                bucketId = bucketId, // Usamos el parámetro aquí
                 fileId = ID.unique(),
                 file = inputFile
             )
 
-            val fileUrl = "${Constants.APPWRITE_ENDPOINT}/storage/buckets/${Constants.POST_IMAGES_BUCKET_ID}/files/${uploadedFile.id}/view?project=${Constants.APPWRITE_PROJECT_ID}"
+            // Construimos la URL usando el bucketId dinámico
+            val fileUrl = "${Constants.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${uploadedFile.id}/view?project=${Constants.APPWRITE_PROJECT_ID}"
 
             file.delete()
 

@@ -10,4 +10,5 @@ sealed class Screen(val route: String) {
 
     // NUEVA RUTA PARA LA FASE 7: Pantalla para redactar una publicación
     data object CreatePost : Screen("create_post")
+    data object Profile : Screen("profile_screen") // NUEVO FASE 10
 }

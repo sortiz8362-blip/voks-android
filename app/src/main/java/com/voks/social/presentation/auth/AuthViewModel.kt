@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.voks.social.core.utils.Resource
 import io.appwrite.models.User
 import com.voks.social.domain.repository.AuthRepository
+import com.voks.social.domain.repository.DatabaseRepository
+import com.voks.social.domain.model.User as DomainUser // Usamos un alias para no confundirlo con el User de Appwrite
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val repository: AuthRepository,
+    private val databaseRepository: DatabaseRepository // AÑADIDO: Para guardar el perfil
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<Resource<Unit>?>(null)
@@ -61,25 +64,37 @@ class AuthViewModel @Inject constructor(
                 repository.logout().collect { }
             } catch (e: Exception) { /* Ignorar si no había sesión */ }
 
-            // 1. Creamos la cuenta
+            // 1. Creamos la cuenta en Appwrite Auth
             repository.register(name = name, email = email, password = password).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        // 2. Cuenta creada. Ahora DEBEMOS iniciar sesión para poder mandar el correo
-                        repository.login(email, password).collect { loginResult ->
-                            when (loginResult) {
-                                is Resource.Success -> {
-                                    // 3. Sesión iniciada. Ahora SÍ podemos enviar el correo de verificación
-                                    repository.sendVerificationEmail("https://voks.saov.page/").collect { verifyResult ->
-                                        _authState.value = verifyResult
+                        val authUser = result.data
+
+                        // 2. NUEVO: Creamos el modelo para la Base de Datos usando el ID de Auth
+                        val newUserProfile = DomainUser(
+                            id = authUser.id,
+                            username = name,
+                            email = email
+                        )
+
+                        // 3. NUEVO: Guardamos el usuario en la Base de Datos
+                        databaseRepository.saveUser(newUserProfile).collect { dbResult ->
+                            if (dbResult is Resource.Success) {
+                                // 4. Perfil guardado. Ahora iniciamos sesión para mandar el correo
+                                repository.login(email, password).collect { loginResult ->
+                                    when (loginResult) {
+                                        is Resource.Success -> {
+                                            // 5. Sesión iniciada. Enviamos correo de verificación
+                                            repository.sendVerificationEmail("https://voks.saov.page/").collect { verifyResult ->
+                                                _authState.value = verifyResult
+                                            }
+                                        }
+                                        is Resource.Error -> _authState.value = Resource.Error(loginResult.message)
+                                        is Resource.Loading -> {}
                                     }
                                 }
-                                is Resource.Error -> {
-                                    _authState.value = Resource.Error(loginResult.message)
-                                }
-                                is Resource.Loading -> {
-                                    // Mantenemos el estado de carga
-                                }
+                            } else if (dbResult is Resource.Error) {
+                                _authState.value = Resource.Error("Error al guardar en BD: ${dbResult.message}")
                             }
                         }
                     }

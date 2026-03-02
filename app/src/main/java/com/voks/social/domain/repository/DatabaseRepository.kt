@@ -11,11 +11,14 @@ interface DatabaseRepository {
     fun saveUser(user: User): Flow<Resource<Unit>>
     fun getUser(userId: String): Flow<Resource<User>>
 
+    // NUEVO FASE 10: Actualizar datos de un usuario (Bio, Foto, Banner)
+    fun updateUser(userId: String, data: Map<String, Any>): Flow<Resource<Unit>>
+
     // CRUD Posts
     fun createPost(post: Post): Flow<Resource<Unit>>
     fun getPosts(): Flow<Resource<List<Post>>>
 
-    // REGLA INQUEBRANTABLE: Mensajería EXCLUSIVA 1 a 1
+    // Mensajería
     fun sendMessage(message: Message): Flow<Resource<Unit>>
     fun getMessages(user1Id: String, user2Id: String): Flow<Resource<List<Message>>>
 }

@@ -3,6 +3,7 @@ package com.voks.social.presentation.post
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.voks.social.core.utils.Constants
 import com.voks.social.core.utils.Resource
 import com.voks.social.domain.model.Post
 import com.voks.social.domain.repository.AuthRepository
@@ -19,13 +20,12 @@ import javax.inject.Inject
 class PostViewModel @Inject constructor(
     private val databaseRepository: DatabaseRepository,
     private val authRepository: AuthRepository,
-    private val storageRepository: StorageRepository // NUEVO FASE 8
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     private val _createPostState = MutableStateFlow<Resource<Unit>?>(null)
     val createPostState: StateFlow<Resource<Unit>?> = _createPostState.asStateFlow()
 
-    // NUEVO FASE 8: Estado para almacenar temporalmente la Uri seleccionada
     private val _selectedMediaUri = MutableStateFlow<Uri?>(null)
     val selectedMediaUri: StateFlow<Uri?> = _selectedMediaUri.asStateFlow()
 
@@ -34,7 +34,6 @@ class PostViewModel @Inject constructor(
     }
 
     fun createPost(content: String) {
-        // Validación: no permitir publicar si no hay texto y tampoco hay foto/video
         if (content.isBlank() && _selectedMediaUri.value == null) return
 
         viewModelScope.launch {
@@ -47,10 +46,10 @@ class PostViewModel @Inject constructor(
                             val userId = userResource.data.id
                             var finalMediaUrl = ""
 
-                            // 1. Si hay archivo multimedia, lo subimos primero al Storage
                             val currentUri = _selectedMediaUri.value
                             if (currentUri != null) {
-                                val uploadResult = storageRepository.uploadMedia(currentUri)
+                                // FASE 10: Le indicamos que suba al Bucket de Posts
+                                val uploadResult = storageRepository.uploadMedia(currentUri, Constants.POST_IMAGES_BUCKET_ID)
                                 if (uploadResult is Resource.Success) {
                                     finalMediaUrl = uploadResult.data
                                 } else if (uploadResult is Resource.Error) {
@@ -59,7 +58,6 @@ class PostViewModel @Inject constructor(
                                 }
                             }
 
-                            // 2. Construimos el post (usando tu campo imageUrl original)
                             val newPost = Post(
                                 userId = userId,
                                 content = content.trim(),
@@ -67,20 +65,17 @@ class PostViewModel @Inject constructor(
                                 likes = emptyList()
                             )
 
-                            // 3. Lo guardamos en Appwrite Database respetando el Flow
                             databaseRepository.createPost(newPost).collect { result ->
                                 _createPostState.value = result
                                 if (result is Resource.Success) {
-                                    _selectedMediaUri.value = null // Limpiar tras éxito
+                                    _selectedMediaUri.value = null
                                 }
                             }
                         }
                         is Resource.Error -> {
                             _createPostState.value = Resource.Error(userResource.message)
                         }
-                        is Resource.Loading -> {
-                            // Mantener estado de carga
-                        }
+                        is Resource.Loading -> {}
                     }
                 }
             } catch (e: Exception) {

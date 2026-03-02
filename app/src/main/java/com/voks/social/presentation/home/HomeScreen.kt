@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +33,7 @@ import com.voks.social.core.utils.Resource
 @Composable
 fun HomeScreen(
     onNavigateToCreatePost: () -> Unit,
+    onNavigateToProfile: () -> Unit, // NUEVO FASE 10: Navegar al perfil
     onLogout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -47,6 +49,15 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
+                },
+                navigationIcon = {
+                    // Botón temporal para ir al perfil
+                    IconButton(onClick = onNavigateToProfile) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Ir al Perfil"
+                        )
+                    }
                 },
                 actions = {
                     // Botón para recargar el feed manualmente

@@ -4,6 +4,6 @@ import android.net.Uri
 import com.voks.social.core.utils.Resource
 
 interface StorageRepository {
-    // Recibe una Uri (foto o video) y devuelve la URL del archivo subido
-    suspend fun uploadMedia(uri: Uri): Resource<String>
+    // FASE 10: Ahora pedimos el bucketId para saber si es un Post o una Foto de Perfil
+    suspend fun uploadMedia(uri: Uri, bucketId: String): Resource<String>
 }

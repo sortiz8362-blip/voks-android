@@ -1,12 +1,13 @@
 package com.voks.social.domain.model
 
 data class User(
-    val id: String = "", // Mapea con el $id autogenerado de Appwrite
+    val id: String = "",
     val username: String = "",
     val email: String = "",
     val profilePictureUrl: String = "",
+    val bannerUrl: String = "", // NUEVO FASE 10: Campo para el banner
     val bio: String = "",
-    val followers: List<String> = emptyList(), // Lista de IDs de usuarios
-    val following: List<String> = emptyList(), // Lista de IDs de usuarios
-    val createdAt: String = "" // Mapea con el $createdAt de Appwrite
+    val followers: List<String> = emptyList(),
+    val following: List<String> = emptyList(),
+    val createdAt: String = ""
 )

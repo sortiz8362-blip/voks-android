@@ -24,6 +24,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "username" to user.username,
                 "email" to user.email,
                 "profilePictureUrl" to user.profilePictureUrl,
+                "bannerUrl" to user.bannerUrl, // AÑADIDO: Guardar banner
                 "bio" to user.bio,
                 "followers" to user.followers,
                 "following" to user.following
@@ -54,6 +55,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 username = data["username"]?.toString() ?: "",
                 email = data["email"]?.toString() ?: "",
                 profilePictureUrl = data["profilePictureUrl"]?.toString() ?: "",
+                bannerUrl = data["bannerUrl"]?.toString() ?: "", // AÑADIDO: Recuperar banner
                 bio = data["bio"]?.toString() ?: "",
                 followers = (data["followers"] as? List<*>)?.map { it.toString() } ?: emptyList(),
                 following = (data["following"] as? List<*>)?.map { it.toString() } ?: emptyList(),
@@ -62,6 +64,22 @@ class AppwriteDatabaseRepository @Inject constructor(
             emit(Resource.Success(user))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Error al obtener el perfil del usuario"))
+        }
+    }
+
+    // NUEVO FASE 10: Implementación para actualizar solo los campos modificados
+    override fun updateUser(userId: String, data: Map<String, Any>): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            databases.updateDocument(
+                databaseId = Constants.DATABASE_ID,
+                collectionId = Constants.USERS_COLLECTION_ID,
+                documentId = userId,
+                data = data
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al actualizar el perfil"))
         }
     }
 
