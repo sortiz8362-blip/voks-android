@@ -42,7 +42,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
+        kotlinCompilerExtensionVersion = "1.5.10"
     }
     packaging {
         resources {
@@ -77,6 +77,8 @@ dependencies {
 
     // Splash Screen para la carga inicial
     implementation("androidx.core:core-splashscreen:1.0.1")
+
+    implementation(libs.androidx.material.icons.extended)
 
     implementation("io.coil-kt:coil-compose:2.6.0")
 

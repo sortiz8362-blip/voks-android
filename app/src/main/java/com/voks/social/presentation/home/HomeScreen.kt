@@ -42,11 +42,10 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val feedState by viewModel.feedState.collectAsState()
-    val selectedTab by viewModel.selectedTab.collectAsState() // FASE 12: Estado de la pestaña
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     Scaffold(
         topBar = {
-            // FASE 12: Agrupamos el TopAppBar y el TabRow en una sola columna superior
             Column {
                 TopAppBar(
                     title = {
@@ -82,7 +81,6 @@ fun HomeScreen(
                     }
                 )
 
-                // FASE 12: Pestañas "Para ti" y "Siguiendo"
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = MaterialTheme.colorScheme.background,
@@ -137,7 +135,6 @@ fun HomeScreen(
                 }
                 is Resource.Success -> {
                     if (state.data.isEmpty()) {
-                        // Mensaje dinámico dependiendo de la pestaña
                         Text(
                             text = if (selectedTab == 0) "Aún no hay publicaciones.\n¡Sé el primero en escribir algo!"
                             else "No hay publicaciones recientes.\n¡Empieza a seguir a otras personas!",
@@ -153,7 +150,10 @@ fun HomeScreen(
                                 PostCard(
                                     postItem = postItem,
                                     onPostClick = { /* Fase Futura */ },
-                                    onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) }
+                                    onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) },
+                                    // FASE 13: Conectando las interacciones
+                                    onLikeClick = { viewModel.toggleLike(postItem.post.id) },
+                                    onBookmarkClick = { viewModel.toggleBookmark(postItem.post.id) }
                                 )
                             }
                         }

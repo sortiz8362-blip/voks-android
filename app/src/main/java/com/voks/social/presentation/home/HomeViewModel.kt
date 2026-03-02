@@ -14,16 +14,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Modelo de datos exclusivo para la UI que une el Post con los datos de su Autor
+// FASE 13: Extendemos el modelo UI para saber de forma instantánea si nos gusta o lo guardamos
 data class PostUiItem(
     val post: Post,
-    val user: User? // Será null temporalmente mientras descarga los datos del usuario
+    val user: User?,
+    val isLikedByMe: Boolean = false,
+    val isBookmarkedByMe: Boolean = false
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val databaseRepository: DatabaseRepository,
-    private val authRepository: AuthRepository // FASE 12: Inyectado para saber quién está logueado
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _feedState = MutableStateFlow<Resource<List<PostUiItem>>>(Resource.Loading)
@@ -32,17 +34,15 @@ class HomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    // FASE 12: Estado de la pestaña activa (0 = Para ti, 1 = Siguiendo)
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    // Caché en memoria para no descargar el mismo perfil varias veces
     private val userCache = mutableMapOf<String, User>()
 
-    // FASE 12: Listas para el filtrado local del doble feed
     private var allPostsCache = listOf<PostUiItem>()
     private var myUserId = ""
     private var myFollowing = listOf<String>()
+    private var myBookmarks = listOf<String>() // FASE 13: Guardamos los IDs de los posts cacheados
 
     init {
         loadFeed()
@@ -63,29 +63,26 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    // FASE 12: Función para cambiar de pestaña desde la UI
     fun setTab(tabIndex: Int) {
         if (_selectedTab.value != tabIndex) {
             _selectedTab.value = tabIndex
-            updateFeedUI() // Refiltramos los posts al instante
+            updateFeedUI()
         }
     }
 
-    // FASE 12: Obtenemos el usuario actual primero para conocer su lista de "Siguiendo"
     private suspend fun fetchCurrentUserAndPosts() {
         authRepository.getUser().collect { authResult ->
             when (authResult) {
                 is Resource.Success -> {
                     myUserId = authResult.data.id
 
-                    // Con el ID, pedimos su perfil en Base de Datos
                     databaseRepository.getUser(myUserId).collect { dbUserResult ->
                         if (dbUserResult is Resource.Success) {
                             myFollowing = dbUserResult.data.following
-                            userCache[myUserId] = dbUserResult.data // Lo cacheamos
+                            myBookmarks = dbUserResult.data.bookmarks // FASE 13
+                            userCache[myUserId] = dbUserResult.data
                         }
 
-                        // Una vez resuelto el perfil (sea éxito o error), cargamos los posts
                         if (dbUserResult !is Resource.Loading) {
                             fetchPostsFromDatabase()
                         }
@@ -94,7 +91,7 @@ class HomeViewModel @Inject constructor(
                 is Resource.Error -> {
                     _feedState.value = Resource.Error(authResult.message ?: "Error de autenticación")
                 }
-                is Resource.Loading -> { /* Ignorar hasta el resultado final */ }
+                is Resource.Loading -> { }
             }
         }
     }
@@ -105,22 +102,22 @@ class HomeViewModel @Inject constructor(
                 is Resource.Success -> {
                     val posts = result.data
 
-                    // FASE 12: Guardamos todos los posts en el caché maestro
-                    allPostsCache = posts.map { PostUiItem(it, userCache[it.userId]) }
+                    // FASE 13: Mapeamos reconociendo mis likes y mis bookmarks
+                    allPostsCache = posts.map { post ->
+                        PostUiItem(
+                            post = post,
+                            user = userCache[post.userId],
+                            isLikedByMe = post.likes.contains(myUserId),
+                            isBookmarkedByMe = myBookmarks.contains(post.id)
+                        )
+                    }
 
-                    // Mostramos la lista dependiendo de la pestaña seleccionada
                     updateFeedUI()
-
-                    // Buscamos los usuarios que faltan en la caché (carga diferida)
                     loadUsersForPosts(posts)
                 }
-                is Resource.Error -> {
-                    _feedState.value = Resource.Error(result.message)
-                }
+                is Resource.Error -> _feedState.value = Resource.Error(result.message)
                 is Resource.Loading -> {
-                    if (_feedState.value !is Resource.Success) {
-                        _feedState.value = Resource.Loading
-                    }
+                    if (_feedState.value !is Resource.Success) _feedState.value = Resource.Loading
                 }
             }
         }
@@ -128,7 +125,6 @@ class HomeViewModel @Inject constructor(
 
     private fun loadUsersForPosts(posts: List<Post>) {
         viewModelScope.launch {
-            // Obtenemos solo los IDs únicos para no hacer llamadas repetidas
             val uniqueUserIds = posts.map { it.userId }.distinct()
 
             uniqueUserIds.forEach { userId ->
@@ -145,26 +141,65 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun updateFeedWithCachedUsers() {
-        // Enriquecemos la lista maestra con los perfiles recién descargados
         allPostsCache = allPostsCache.map { item ->
             item.copy(user = userCache[item.post.userId])
         }
-        // Refrescamos la UI respetando la pestaña actual
         updateFeedUI()
     }
 
-    // FASE 12: Lógica central del algoritmo de feed
     private fun updateFeedUI() {
         val currentTab = _selectedTab.value
 
         val filteredList = if (currentTab == 0) {
-            // "Para ti": Retorna todos los posts sin restricciones
             allPostsCache
         } else {
-            // "Siguiendo": Retorna solo posts del usuario actual o de gente que sigue
             allPostsCache.filter { it.post.userId == myUserId || myFollowing.contains(it.post.userId) }
         }
 
         _feedState.value = Resource.Success(filteredList)
+    }
+
+    // --- FASE 13: Lógica de Interacciones (Actualización Optimista) ---
+
+    fun toggleLike(postId: String) {
+        if (myUserId.isEmpty()) return
+
+        // 1. Actualización Optimista (Reflejo instantáneo en UI)
+        allPostsCache = allPostsCache.map { item ->
+            if (item.post.id == postId) {
+                val newLikes = item.post.likes.toMutableList()
+                val isCurrentlyLiked = newLikes.contains(myUserId)
+
+                if (isCurrentlyLiked) newLikes.remove(myUserId) else newLikes.add(myUserId)
+
+                item.copy(
+                    post = item.post.copy(likes = newLikes),
+                    isLikedByMe = !isCurrentlyLiked
+                )
+            } else item
+        }
+        updateFeedUI()
+
+        // 2. Ejecutar petición en backend silenciosamente
+        viewModelScope.launch {
+            databaseRepository.toggleLike(postId, myUserId).collect { }
+        }
+    }
+
+    fun toggleBookmark(postId: String) {
+        if (myUserId.isEmpty()) return
+
+        // 1. Actualización Optimista
+        allPostsCache = allPostsCache.map { item ->
+            if (item.post.id == postId) {
+                item.copy(isBookmarkedByMe = !item.isBookmarkedByMe)
+            } else item
+        }
+        updateFeedUI()
+
+        // 2. Petición a base de datos
+        viewModelScope.launch {
+            databaseRepository.toggleBookmark(myUserId, postId).collect { }
+        }
     }
 }

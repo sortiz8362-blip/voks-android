@@ -14,13 +14,17 @@ interface DatabaseRepository {
     // Actualizar datos de un usuario (Bio, Foto, Banner)
     fun updateUser(userId: String, data: Map<String, Any>): Flow<Resource<Unit>>
 
-    // FASE 11: Conexiones (Seguir / Dejar de seguir)
+    // Conexiones (Seguir / Dejar de seguir)
     fun followUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>>
     fun unfollowUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>>
 
     // CRUD Posts
     fun createPost(post: Post): Flow<Resource<Unit>>
     fun getPosts(): Flow<Resource<List<Post>>>
+
+    // FASE 13: Interacciones Ligeras
+    fun toggleLike(postId: String, userId: String): Flow<Resource<Unit>>
+    fun toggleBookmark(userId: String, postId: String): Flow<Resource<Unit>>
 
     // Mensajería
     fun sendMessage(message: Message): Flow<Resource<Unit>>

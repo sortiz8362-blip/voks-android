@@ -27,7 +27,8 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "bannerUrl" to user.bannerUrl,
                 "bio" to user.bio,
                 "followers" to user.followers,
-                "following" to user.following
+                "following" to user.following,
+                "bookmarks" to user.bookmarks // FASE 13
             )
             databases.createDocument(
                 databaseId = Constants.DATABASE_ID,
@@ -59,6 +60,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 bio = data["bio"]?.toString() ?: "",
                 followers = (data["followers"] as? List<*>)?.map { it.toString() } ?: emptyList(),
                 following = (data["following"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                bookmarks = (data["bookmarks"] as? List<*>)?.map { it.toString() } ?: emptyList(), // FASE 13
                 createdAt = document.createdAt
             )
             emit(Resource.Success(user))
@@ -82,11 +84,9 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
-    // --- NUEVO FASE 11: Lógica de conexiones ---
     override fun followUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {
-            // 1. Actualizar mi lista de "following"
             val currentUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, currentUserId)
             val currentFollowing = (currentUserDoc.data["following"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
             if (!currentFollowing.contains(targetUserId)) {
@@ -99,7 +99,6 @@ class AppwriteDatabaseRepository @Inject constructor(
                 )
             }
 
-            // 2. Actualizar la lista de "followers" del perfil objetivo
             val targetUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, targetUserId)
             val targetFollowers = (targetUserDoc.data["followers"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
             if (!targetFollowers.contains(currentUserId)) {
@@ -120,7 +119,6 @@ class AppwriteDatabaseRepository @Inject constructor(
     override fun unfollowUser(currentUserId: String, targetUserId: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {
-            // 1. Quitar al usuario de mi lista de "following"
             val currentUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, currentUserId)
             val currentFollowing = (currentUserDoc.data["following"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
             if (currentFollowing.contains(targetUserId)) {
@@ -133,7 +131,6 @@ class AppwriteDatabaseRepository @Inject constructor(
                 )
             }
 
-            // 2. Quitarme de su lista de "followers"
             val targetUserDoc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, targetUserId)
             val targetFollowers = (targetUserDoc.data["followers"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
             if (targetFollowers.contains(currentUserId)) {
@@ -150,7 +147,6 @@ class AppwriteDatabaseRepository @Inject constructor(
             emit(Resource.Error(e.message ?: "Error al dejar de seguir al usuario"))
         }
     }
-    // ---------------------------------------------
 
     override fun createPost(post: Post): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
@@ -198,6 +194,42 @@ class AppwriteDatabaseRepository @Inject constructor(
             emit(Resource.Error(e.message ?: "Error al obtener el feed"))
         }
     }
+
+    // --- NUEVO FASE 13: Likes y Bookmarks ---
+    override fun toggleLike(postId: String, userId: String): Flow<Resource<Unit>> = flow {
+        try {
+            val doc = databases.getDocument(Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, postId)
+            val likes = (doc.data["likes"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+
+            if (likes.contains(userId)) likes.remove(userId) else likes.add(userId)
+
+            databases.updateDocument(
+                Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, postId,
+                data = mapOf("likes" to likes)
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al procesar el Me gusta"))
+        }
+    }
+
+    override fun toggleBookmark(userId: String, postId: String): Flow<Resource<Unit>> = flow {
+        try {
+            val doc = databases.getDocument(Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, userId)
+            val bookmarks = (doc.data["bookmarks"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+
+            if (bookmarks.contains(postId)) bookmarks.remove(postId) else bookmarks.add(postId)
+
+            databases.updateDocument(
+                Constants.DATABASE_ID, Constants.USERS_COLLECTION_ID, userId,
+                data = mapOf("bookmarks" to bookmarks)
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al procesar el guardado"))
+        }
+    }
+    // ----------------------------------------
 
     override fun sendMessage(message: Message): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)

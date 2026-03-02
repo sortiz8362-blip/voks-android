@@ -15,15 +15,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +41,10 @@ import com.voks.social.core.utils.formatRelativeTime
 fun PostCard(
     postItem: PostUiItem,
     onPostClick: () -> Unit = {},
-    onUserClick: (String) -> Unit = {}
+    onUserClick: (String) -> Unit = {},
+    // FASE 13: Callbacks de interacciones
+    onLikeClick: () -> Unit = {},
+    onBookmarkClick: () -> Unit = {}
 ) {
     val post = postItem.post
     val user = postItem.user
@@ -45,13 +54,13 @@ fun PostCard(
             .fillMaxWidth()
             .clickable { onPostClick() }
             .background(MaterialTheme.colorScheme.surface)
-            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)
+            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            // Avatar (Foto de perfil)
+            // Avatar
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -82,7 +91,7 @@ fun PostCard(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Cabecera (Usuario y Tiempo)
+                // Cabecera
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -105,11 +114,7 @@ fun PostCard(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "·",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(text = "·", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = formatRelativeTime(post.createdAt),
@@ -121,7 +126,7 @@ fun PostCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Texto principal del post
+                // Texto principal
                 Text(
                     text = post.content,
                     style = MaterialTheme.typography.bodyLarge,
@@ -130,7 +135,7 @@ fun PostCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Si el post tiene imagen adjunta, la mostramos (Validamos con tu propiedad imageUrl)
+                // Imagen adjunta (Si existe)
                 if (post.imageUrl.isNotEmpty()) {
                     AsyncImage(
                         model = post.imageUrl,
@@ -142,17 +147,44 @@ fun PostCard(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Aquí irían los botones de interacción (Likes, Comments, Reposts) en el futuro
+                // FASE 13: Barra de Interacciones
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Placeholders para futuros íconos
+                    // Like Button
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onLikeClick) {
+                            Icon(
+                                imageVector = if (postItem.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Me gusta",
+                                tint = if (postItem.isLikedByMe) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        if (post.likes.isNotEmpty()) {
+                            Text(
+                                text = post.likes.size.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (postItem.isLikedByMe) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Bookmark Button
+                    IconButton(onClick = onBookmarkClick) {
+                        Icon(
+                            imageVector = if (postItem.isBookmarkedByMe) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = "Guardar",
+                            tint = if (postItem.isBookmarkedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

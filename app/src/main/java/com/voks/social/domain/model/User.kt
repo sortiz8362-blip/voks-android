@@ -5,9 +5,10 @@ data class User(
     val username: String = "",
     val email: String = "",
     val profilePictureUrl: String = "",
-    val bannerUrl: String = "", // NUEVO FASE 10: Campo para el banner
+    val bannerUrl: String = "",
     val bio: String = "",
     val followers: List<String> = emptyList(),
     val following: List<String> = emptyList(),
+    val bookmarks: List<String> = emptyList(), // NUEVO FASE 13: Posts guardados
     val createdAt: String = ""
 )
