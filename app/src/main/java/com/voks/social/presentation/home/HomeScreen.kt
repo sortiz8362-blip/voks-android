@@ -39,6 +39,7 @@ fun HomeScreen(
     onNavigateToCreatePost: () -> Unit,
     onNavigateToProfile: (String?) -> Unit,
     onLogout: () -> Unit,
+    onNavigateToPostDetail: (String) -> Unit, // NUEVO FASE 14
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val feedState by viewModel.feedState.collectAsState()
@@ -149,11 +150,12 @@ fun HomeScreen(
                             items(state.data) { postItem ->
                                 PostCard(
                                     postItem = postItem,
-                                    onPostClick = { /* Fase Futura */ },
+                                    // FASE 14: Mandar al Detalle del Post
+                                    onPostClick = { onNavigateToPostDetail(postItem.post.id) },
                                     onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) },
-                                    // FASE 13: Conectando las interacciones
                                     onLikeClick = { viewModel.toggleLike(postItem.post.id) },
-                                    onBookmarkClick = { viewModel.toggleBookmark(postItem.post.id) }
+                                    onBookmarkClick = { viewModel.toggleBookmark(postItem.post.id) },
+                                    onCommentClick = { onNavigateToPostDetail(postItem.post.id) } // NUEVO FASE 14
                                 )
                             }
                         }

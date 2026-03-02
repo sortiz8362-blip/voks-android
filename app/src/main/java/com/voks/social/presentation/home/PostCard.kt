@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,9 +43,9 @@ fun PostCard(
     postItem: PostUiItem,
     onPostClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
-    // FASE 13: Callbacks de interacciones
     onLikeClick: () -> Unit = {},
-    onBookmarkClick: () -> Unit = {}
+    onBookmarkClick: () -> Unit = {},
+    onCommentClick: () -> Unit = {} // NUEVO FASE 14
 ) {
     val post = postItem.post
     val user = postItem.user
@@ -149,7 +150,7 @@ fun PostCard(
                     )
                 }
 
-                // FASE 13: Barra de Interacciones
+                // FASE 13 Y 14: Barra de Interacciones
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -157,8 +158,21 @@ fun PostCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Like Button
                     Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        // FASE 14: Botón de Comentarios
+                        IconButton(onClick = onCommentClick) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = "Comentar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // FASE 13: Like Button
                         IconButton(onClick = onLikeClick) {
                             Icon(
                                 imageVector = if (postItem.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,

@@ -12,6 +12,7 @@ object Constants {
     const val USERS_COLLECTION_ID = "users"
     const val POSTS_COLLECTION_ID = "posts"
     const val MESSAGES_COLLECTION_ID = "messages"
+    const val COMMENTS_COLLECTION_ID = "comments" // NUEVO FASE 14: Colección de comentarios
 
     // IDs de los Buckets de Storage
     const val POST_IMAGES_BUCKET_ID = "69a4a3d400051688ae72"

@@ -13,6 +13,7 @@ import com.voks.social.presentation.auth.VerificationScreen
 import com.voks.social.presentation.auth.WelcomeScreen
 import com.voks.social.presentation.home.HomeScreen
 import com.voks.social.presentation.post.CreatePostScreen
+import com.voks.social.presentation.post.PostDetailScreen
 import com.voks.social.presentation.profile.ProfileScreen
 
 @Composable
@@ -78,6 +79,10 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                // NUEVO FASE 14: Navegación al detalle del post
+                onNavigateToPostDetail = { postId ->
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
                 }
             )
         }
@@ -88,7 +93,7 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
-        // NUEVO FASE 11: Soporte para argumentos en la ruta del perfil
+        // FASE 11: Soporte para argumentos en la ruta del perfil
         composable(
             route = Screen.Profile.route,
             arguments = listOf(navArgument("userId") {
@@ -100,6 +105,14 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             ProfileScreen(
                 navController = navController
             )
+        }
+
+        // NUEVO FASE 14: Pantalla de Detalle de Post (Hilos/Comentarios)
+        composable(
+            route = Screen.PostDetail.route,
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) {
+            PostDetailScreen(navController = navController)
         }
     }
 }

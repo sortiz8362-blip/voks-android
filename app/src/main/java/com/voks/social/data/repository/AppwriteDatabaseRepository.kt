@@ -2,6 +2,7 @@ package com.voks.social.data.repository
 
 import com.voks.social.core.utils.Constants
 import com.voks.social.core.utils.Resource
+import com.voks.social.domain.model.Comment
 import com.voks.social.domain.model.Message
 import com.voks.social.domain.model.Post
 import com.voks.social.domain.model.User
@@ -195,7 +196,31 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
-    // --- NUEVO FASE 13: Likes y Bookmarks ---
+    // NUEVO FASE 14: Obtener un solo Post
+    override fun getPost(postId: String): Flow<Resource<Post>> = flow {
+        emit(Resource.Loading)
+        try {
+            val document = databases.getDocument(
+                databaseId = Constants.DATABASE_ID,
+                collectionId = Constants.POSTS_COLLECTION_ID,
+                documentId = postId
+            )
+            val data = document.data
+            val post = Post(
+                id = document.id,
+                userId = data["userId"]?.toString() ?: "",
+                content = data["content"]?.toString() ?: "",
+                imageUrl = data["imageUrl"]?.toString() ?: "",
+                likes = (data["likes"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                createdAt = document.createdAt
+            )
+            emit(Resource.Success(post))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al cargar el detalle del post"))
+        }
+    }
+
+    // --- FASE 13: Likes y Bookmarks ---
     override fun toggleLike(postId: String, userId: String): Flow<Resource<Unit>> = flow {
         try {
             val doc = databases.getDocument(Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, postId)
@@ -229,8 +254,57 @@ class AppwriteDatabaseRepository @Inject constructor(
             emit(Resource.Error(e.message ?: "Error al procesar el guardado"))
         }
     }
-    // ----------------------------------------
 
+    // --- FASE 14: Comentarios ---
+    override fun addComment(comment: Comment): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            val mapData = mapOf(
+                "postId" to comment.postId,
+                "userId" to comment.userId,
+                "content" to comment.content
+            )
+            databases.createDocument(
+                databaseId = Constants.DATABASE_ID,
+                collectionId = Constants.COMMENTS_COLLECTION_ID,
+                documentId = ID.unique(),
+                data = mapData
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al añadir comentario"))
+        }
+    }
+
+    override fun getCommentsForPost(postId: String): Flow<Resource<List<Comment>>> = flow {
+        emit(Resource.Loading)
+        try {
+            val result = databases.listDocuments(
+                databaseId = Constants.DATABASE_ID,
+                collectionId = Constants.COMMENTS_COLLECTION_ID,
+                queries = listOf(
+                    Query.equal("postId", postId),
+                    Query.orderAsc("\$createdAt") // Mostramos los comentarios en orden cronológico
+                )
+            )
+
+            val comments = result.documents.map { document ->
+                val data = document.data
+                Comment(
+                    id = document.id,
+                    postId = data["postId"]?.toString() ?: "",
+                    userId = data["userId"]?.toString() ?: "",
+                    content = data["content"]?.toString() ?: "",
+                    createdAt = document.createdAt
+                )
+            }
+            emit(Resource.Success(comments))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al obtener comentarios"))
+        }
+    }
+
+    // --- Mensajería ---
     override fun sendMessage(message: Message): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
         try {

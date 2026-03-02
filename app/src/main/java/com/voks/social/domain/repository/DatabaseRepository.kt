@@ -1,6 +1,7 @@
 package com.voks.social.domain.repository
 
 import com.voks.social.core.utils.Resource
+import com.voks.social.domain.model.Comment
 import com.voks.social.domain.model.Message
 import com.voks.social.domain.model.Post
 import com.voks.social.domain.model.User
@@ -21,10 +22,15 @@ interface DatabaseRepository {
     // CRUD Posts
     fun createPost(post: Post): Flow<Resource<Unit>>
     fun getPosts(): Flow<Resource<List<Post>>>
+    fun getPost(postId: String): Flow<Resource<Post>> // NUEVO: Para obtener un solo post
 
     // FASE 13: Interacciones Ligeras
     fun toggleLike(postId: String, userId: String): Flow<Resource<Unit>>
     fun toggleBookmark(userId: String, postId: String): Flow<Resource<Unit>>
+
+    // FASE 14: Interacciones Profundas (Comentarios)
+    fun addComment(comment: Comment): Flow<Resource<Unit>>
+    fun getCommentsForPost(postId: String): Flow<Resource<List<Comment>>>
 
     // Mensajería
     fun sendMessage(message: Message): Flow<Resource<Unit>>
