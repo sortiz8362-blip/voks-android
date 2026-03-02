@@ -1,6 +1,7 @@
 package com.voks.social.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,22 +43,52 @@ import com.voks.social.core.utils.formatRelativeTime
 @Composable
 fun PostCard(
     postItem: PostUiItem,
-    onPostClick: () -> Unit = {},
+    onPostClick: (String) -> Unit = {},
     onUserClick: (String) -> Unit = {},
-    onLikeClick: () -> Unit = {},
-    onBookmarkClick: () -> Unit = {},
-    onCommentClick: () -> Unit = {} // NUEVO FASE 14
+    onLikeClick: (String) -> Unit = {},
+    onBookmarkClick: (String) -> Unit = {},
+    onCommentClick: (String) -> Unit = {},
+    onRepostClick: (String) -> Unit = {} // NUEVO FASE 15
 ) {
-    val post = postItem.post
-    val user = postItem.user
+    val rawPost = postItem.post
+    val rawUser = postItem.user
+
+    // FASE 15: Determinar si es un Repost puro (Sin texto añadido). Si lo es, mostramos el post original
+    val isPureRepost = rawPost.originalPostId.isNotEmpty() && rawPost.content.isEmpty()
+    val displayPost = if (isPureRepost && postItem.originalPost != null) postItem.originalPost else rawPost
+    val displayUser = if (isPureRepost && postItem.originalPostUser != null) postItem.originalPostUser else rawUser
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onPostClick() }
+            .clickable { onPostClick(displayPost.id) }
             .background(MaterialTheme.colorScheme.surface)
             .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 4.dp)
     ) {
+        // Cabecera indicadora de Repost
+        if (isPureRepost) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 48.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Repeat,
+                    contentDescription = "Repost",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${rawUser?.username ?: "Alguien"} reposteó",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -67,12 +99,12 @@ fun PostCard(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { onUserClick(post.userId) },
+                    .clickable { onUserClick(displayPost.userId) },
                 contentAlignment = Alignment.Center
             ) {
-                if (!user?.profilePictureUrl.isNullOrEmpty()) {
+                if (!displayUser?.profilePictureUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = user?.profilePictureUrl,
+                        model = displayUser?.profilePictureUrl,
                         contentDescription = "Foto de perfil",
                         modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.Crop
@@ -92,22 +124,22 @@ fun PostCard(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Cabecera
+                // Cabecera de usuario
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = user?.username ?: "Usuario",
+                        text = displayUser?.username ?: "Usuario",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable { onUserClick(post.userId) }
+                        modifier = Modifier.clickable { onUserClick(displayPost.userId) }
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "@${user?.username ?: "usuario"}",
+                        text = "@${displayUser?.username ?: "usuario"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -118,7 +150,7 @@ fun PostCard(
                     Text(text = "·", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = formatRelativeTime(post.createdAt),
+                        text = formatRelativeTime(displayPost.createdAt),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -128,18 +160,19 @@ fun PostCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Texto principal
-                Text(
-                    text = post.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                if (displayPost.content.isNotEmpty()) {
+                    Text(
+                        text = displayPost.content,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Imagen adjunta (Si existe)
-                if (post.imageUrl.isNotEmpty()) {
+                // Imagen adjunta principal (Si existe)
+                if (displayPost.imageUrl.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     AsyncImage(
-                        model = post.imageUrl,
+                        model = displayPost.imageUrl,
                         contentDescription = "Imagen del post",
                         modifier = Modifier
                             .fillMaxWidth()
@@ -150,7 +183,61 @@ fun PostCard(
                     )
                 }
 
-                // FASE 13 Y 14: Barra de Interacciones
+                // FASE 15: Post Citado (Quote Tweet - Un post dentro de otro post)
+                if (!isPureRepost && rawPost.originalPostId.isNotEmpty() && postItem.originalPost != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onPostClick(rawPost.originalPostId) }
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AsyncImage(
+                                    model = postItem.originalPostUser?.profilePictureUrl?.ifEmpty { "https://ui-avatars.com/api/?name=${postItem.originalPostUser.username}" },
+                                    contentDescription = "Avatar citado",
+                                    modifier = Modifier.size(20.dp).clip(CircleShape).background(Color.Gray),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = postItem.originalPostUser?.username ?: "Usuario",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "· ${formatRelativeTime(postItem.originalPost.createdAt)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            if (postItem.originalPost.content.isNotEmpty()) {
+                                Text(
+                                    text = postItem.originalPost.content,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (postItem.originalPost.imageUrl.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                AsyncImage(
+                                    model = postItem.originalPost.imageUrl,
+                                    contentDescription = "Imagen citada",
+                                    modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Barra de Interacciones
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -160,8 +247,8 @@ fun PostCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
 
-                        // FASE 14: Botón de Comentarios
-                        IconButton(onClick = onCommentClick) {
+                        // Comentarios
+                        IconButton(onClick = { onCommentClick(displayPost.id) }) {
                             Icon(
                                 imageVector = Icons.Outlined.ChatBubbleOutline,
                                 contentDescription = "Comentar",
@@ -172,8 +259,27 @@ fun PostCard(
 
                         Spacer(modifier = Modifier.width(16.dp))
 
-                        // FASE 13: Like Button
-                        IconButton(onClick = onLikeClick) {
+                        // FASE 15: Repost Button
+                        IconButton(onClick = { onRepostClick(displayPost.id) }) {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = "Repostear",
+                                tint = if (postItem.isRepostedByMe) Color(0xFF00BA7C) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        if (displayPost.reposts.isNotEmpty()) {
+                            Text(
+                                text = displayPost.reposts.size.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (postItem.isRepostedByMe) Color(0xFF00BA7C) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Likes
+                        IconButton(onClick = { onLikeClick(displayPost.id) }) {
                             Icon(
                                 imageVector = if (postItem.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Me gusta",
@@ -181,17 +287,17 @@ fun PostCard(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        if (post.likes.isNotEmpty()) {
+                        if (displayPost.likes.isNotEmpty()) {
                             Text(
-                                text = post.likes.size.toString(),
+                                text = displayPost.likes.size.toString(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (postItem.isLikedByMe) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    // Bookmark Button
-                    IconButton(onClick = onBookmarkClick) {
+                    // Bookmark
+                    IconButton(onClick = { onBookmarkClick(displayPost.id) }) {
                         Icon(
                             imageVector = if (postItem.isBookmarkedByMe) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Guardar",

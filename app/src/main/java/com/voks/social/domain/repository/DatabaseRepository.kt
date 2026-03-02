@@ -22,11 +22,14 @@ interface DatabaseRepository {
     // CRUD Posts
     fun createPost(post: Post): Flow<Resource<Unit>>
     fun getPosts(): Flow<Resource<List<Post>>>
-    fun getPost(postId: String): Flow<Resource<Post>> // NUEVO: Para obtener un solo post
+    fun getPost(postId: String): Flow<Resource<Post>> // Para obtener un solo post
 
     // FASE 13: Interacciones Ligeras
     fun toggleLike(postId: String, userId: String): Flow<Resource<Unit>>
     fun toggleBookmark(userId: String, postId: String): Flow<Resource<Unit>>
+
+    // FASE 15: Propagación (Reposts)
+    fun toggleRepost(postId: String, userId: String): Flow<Resource<Unit>>
 
     // FASE 14: Interacciones Profundas (Comentarios)
     fun addComment(comment: Comment): Flow<Resource<Unit>>

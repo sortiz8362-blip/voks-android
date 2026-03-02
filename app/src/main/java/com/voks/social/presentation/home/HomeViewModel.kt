@@ -14,12 +14,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// FASE 13: Extendemos el modelo UI para saber de forma instantánea si nos gusta o lo guardamos
+// FASE 15: Extendemos el modelo UI para soportar la anidación de Reposts y Citas
 data class PostUiItem(
     val post: Post,
     val user: User?,
     val isLikedByMe: Boolean = false,
-    val isBookmarkedByMe: Boolean = false
+    val isBookmarkedByMe: Boolean = false,
+    val isRepostedByMe: Boolean = false, // NUEVO
+    val originalPost: Post? = null, // NUEVO: Si es un repost/cita, aquí guardamos el contenido original
+    val originalPostUser: User? = null // NUEVO: Autor del contenido original
 )
 
 @HiltViewModel
@@ -42,7 +45,7 @@ class HomeViewModel @Inject constructor(
     private var allPostsCache = listOf<PostUiItem>()
     private var myUserId = ""
     private var myFollowing = listOf<String>()
-    private var myBookmarks = listOf<String>() // FASE 13: Guardamos los IDs de los posts cacheados
+    private var myBookmarks = listOf<String>()
 
     init {
         loadFeed()
@@ -79,7 +82,7 @@ class HomeViewModel @Inject constructor(
                     databaseRepository.getUser(myUserId).collect { dbUserResult ->
                         if (dbUserResult is Resource.Success) {
                             myFollowing = dbUserResult.data.following
-                            myBookmarks = dbUserResult.data.bookmarks // FASE 13
+                            myBookmarks = dbUserResult.data.bookmarks
                             userCache[myUserId] = dbUserResult.data
                         }
 
@@ -102,18 +105,37 @@ class HomeViewModel @Inject constructor(
                 is Resource.Success -> {
                     val posts = result.data
 
-                    // FASE 13: Mapeamos reconociendo mis likes y mis bookmarks
+                    // FASE 15: Localizar los posts originales perdidos que han sido reposteados
+                    val missingPostIds = posts.filter { it.originalPostId.isNotEmpty() && posts.none { p -> p.id == it.originalPostId } }
+                        .map { it.originalPostId }.distinct()
+
+                    val extraPosts = mutableListOf<Post>()
+                    missingPostIds.forEach { id ->
+                        try {
+                            databaseRepository.getPost(id).collect { res ->
+                                if (res is Resource.Success) extraPosts.add(res.data)
+                            }
+                        } catch (e: Exception) { /* Evitar cuelgues si un post fue eliminado */ }
+                    }
+                    val allFetchedPosts = posts + extraPosts
+
+                    // Mapeamos a la interfaz visual
                     allPostsCache = posts.map { post ->
+                        val origPost = if (post.originalPostId.isNotEmpty()) allFetchedPosts.find { it.id == post.originalPostId } else null
+
                         PostUiItem(
                             post = post,
                             user = userCache[post.userId],
                             isLikedByMe = post.likes.contains(myUserId),
-                            isBookmarkedByMe = myBookmarks.contains(post.id)
+                            isBookmarkedByMe = myBookmarks.contains(post.id),
+                            isRepostedByMe = post.reposts.contains(myUserId),
+                            originalPost = origPost,
+                            originalPostUser = origPost?.let { userCache[it.userId] }
                         )
                     }
 
                     updateFeedUI()
-                    loadUsersForPosts(posts)
+                    loadUsersForPosts(allFetchedPosts) // Asegurarnos de tener los avatares de los autores originales también
                 }
                 is Resource.Error -> _feedState.value = Resource.Error(result.message)
                 is Resource.Loading -> {
@@ -142,7 +164,10 @@ class HomeViewModel @Inject constructor(
 
     private fun updateFeedWithCachedUsers() {
         allPostsCache = allPostsCache.map { item ->
-            item.copy(user = userCache[item.post.userId])
+            item.copy(
+                user = userCache[item.post.userId],
+                originalPostUser = item.originalPost?.let { userCache[it.userId] }
+            )
         }
         updateFeedUI()
     }
@@ -159,19 +184,19 @@ class HomeViewModel @Inject constructor(
         _feedState.value = Resource.Success(filteredList)
     }
 
-    // --- FASE 13: Lógica de Interacciones (Actualización Optimista) ---
+    // --- Lógica de Interacciones (Actualización Optimista) ---
 
     fun toggleLike(postId: String) {
         if (myUserId.isEmpty()) return
 
-        // 1. Actualización Optimista (Reflejo instantáneo en UI)
         allPostsCache = allPostsCache.map { item ->
-            if (item.post.id == postId) {
+            // Modificamos el post directo o el anidado si estamos visualizando un repost puro
+            val targetPostId = if (item.post.originalPostId.isNotEmpty() && item.post.content.isEmpty()) item.post.originalPostId else item.post.id
+
+            if (targetPostId == postId) {
                 val newLikes = item.post.likes.toMutableList()
                 val isCurrentlyLiked = newLikes.contains(myUserId)
-
                 if (isCurrentlyLiked) newLikes.remove(myUserId) else newLikes.add(myUserId)
-
                 item.copy(
                     post = item.post.copy(likes = newLikes),
                     isLikedByMe = !isCurrentlyLiked
@@ -180,26 +205,40 @@ class HomeViewModel @Inject constructor(
         }
         updateFeedUI()
 
-        // 2. Ejecutar petición en backend silenciosamente
-        viewModelScope.launch {
-            databaseRepository.toggleLike(postId, myUserId).collect { }
-        }
+        viewModelScope.launch { databaseRepository.toggleLike(postId, myUserId).collect { } }
     }
 
     fun toggleBookmark(postId: String) {
         if (myUserId.isEmpty()) return
 
-        // 1. Actualización Optimista
         allPostsCache = allPostsCache.map { item ->
-            if (item.post.id == postId) {
+            val targetPostId = if (item.post.originalPostId.isNotEmpty() && item.post.content.isEmpty()) item.post.originalPostId else item.post.id
+            if (targetPostId == postId) {
                 item.copy(isBookmarkedByMe = !item.isBookmarkedByMe)
             } else item
         }
         updateFeedUI()
 
-        // 2. Petición a base de datos
-        viewModelScope.launch {
-            databaseRepository.toggleBookmark(myUserId, postId).collect { }
+        viewModelScope.launch { databaseRepository.toggleBookmark(myUserId, postId).collect { } }
+    }
+
+    fun toggleRepost(postId: String) {
+        if (myUserId.isEmpty()) return
+
+        allPostsCache = allPostsCache.map { item ->
+            val targetPostId = if (item.post.originalPostId.isNotEmpty() && item.post.content.isEmpty()) item.post.originalPostId else item.post.id
+            if (targetPostId == postId) {
+                val newReposts = item.post.reposts.toMutableList()
+                val isCurrentlyReposted = newReposts.contains(myUserId)
+                if (isCurrentlyReposted) newReposts.remove(myUserId) else newReposts.add(myUserId)
+                item.copy(
+                    post = item.post.copy(reposts = newReposts),
+                    isRepostedByMe = !isCurrentlyReposted
+                )
+            } else item
         }
+        updateFeedUI()
+
+        viewModelScope.launch { databaseRepository.toggleRepost(postId, myUserId).collect { } }
     }
 }

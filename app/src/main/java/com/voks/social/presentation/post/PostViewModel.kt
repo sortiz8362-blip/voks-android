@@ -1,11 +1,13 @@
 package com.voks.social.presentation.post
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voks.social.core.utils.Constants
 import com.voks.social.core.utils.Resource
 import com.voks.social.domain.model.Post
+import com.voks.social.domain.model.User
 import com.voks.social.domain.repository.AuthRepository
 import com.voks.social.domain.repository.DatabaseRepository
 import com.voks.social.domain.repository.StorageRepository
@@ -19,73 +21,90 @@ import javax.inject.Inject
 @HiltViewModel
 class PostViewModel @Inject constructor(
     private val databaseRepository: DatabaseRepository,
+    private val storageRepository: StorageRepository,
     private val authRepository: AuthRepository,
-    private val storageRepository: StorageRepository
+    savedStateHandle: SavedStateHandle // Permite recuperar argumentos de la navegación
 ) : ViewModel() {
 
-    private val _createPostState = MutableStateFlow<Resource<Unit>?>(null)
-    val createPostState: StateFlow<Resource<Unit>?> = _createPostState.asStateFlow()
+    // FASE 15: Extraer el ID citado si existe
+    val quoteId: String? = savedStateHandle.get<String>("quoteId")
 
-    private val _selectedMediaUri = MutableStateFlow<Uri?>(null)
-    val selectedMediaUri: StateFlow<Uri?> = _selectedMediaUri.asStateFlow()
+    private val _createState = MutableStateFlow<Resource<Unit>?>(null)
+    val createState: StateFlow<Resource<Unit>?> = _createState.asStateFlow()
 
-    fun setMediaUri(uri: Uri?) {
-        _selectedMediaUri.value = uri
+    // FASE 15: Post Citado y su Autor para mostrarlos como Preview en el compositor
+    private val _quotedPost = MutableStateFlow<Post?>(null)
+    val quotedPost = _quotedPost.asStateFlow()
+
+    private val _quotedPostUser = MutableStateFlow<User?>(null)
+    val quotedPostUser = _quotedPostUser.asStateFlow()
+
+    init {
+        quoteId?.let { fetchQuotedPost(it) }
     }
 
-    fun createPost(content: String) {
-        if (content.isBlank() && _selectedMediaUri.value == null) return
-
+    private fun fetchQuotedPost(id: String) {
         viewModelScope.launch {
-            _createPostState.value = Resource.Loading
-
-            try {
-                authRepository.getUser().collect { userResource ->
-                    when (userResource) {
-                        is Resource.Success -> {
-                            val userId = userResource.data.id
-                            var finalMediaUrl = ""
-
-                            val currentUri = _selectedMediaUri.value
-                            if (currentUri != null) {
-                                // FASE 10: Le indicamos que suba al Bucket de Posts
-                                val uploadResult = storageRepository.uploadMedia(currentUri, Constants.POST_IMAGES_BUCKET_ID)
-                                if (uploadResult is Resource.Success) {
-                                    finalMediaUrl = uploadResult.data
-                                } else if (uploadResult is Resource.Error) {
-                                    _createPostState.value = Resource.Error(uploadResult.message ?: "Error al subir multimedia")
-                                    return@collect
-                                }
-                            }
-
-                            val newPost = Post(
-                                userId = userId,
-                                content = content.trim(),
-                                imageUrl = finalMediaUrl,
-                                likes = emptyList()
-                            )
-
-                            databaseRepository.createPost(newPost).collect { result ->
-                                _createPostState.value = result
-                                if (result is Resource.Success) {
-                                    _selectedMediaUri.value = null
-                                }
-                            }
-                        }
-                        is Resource.Error -> {
-                            _createPostState.value = Resource.Error(userResource.message)
-                        }
-                        is Resource.Loading -> {}
-                    }
+            databaseRepository.getPost(id).collect { result ->
+                if (result is Resource.Success) {
+                    _quotedPost.value = result.data
+                    fetchQuotedPostUser(result.data.userId)
                 }
-            } catch (e: Exception) {
-                _createPostState.value = Resource.Error(e.message ?: "Ocurrió un error inesperado al publicar.")
             }
         }
     }
 
-    fun resetCreatePostState() {
-        _createPostState.value = null
-        _selectedMediaUri.value = null
+    private fun fetchQuotedPostUser(userId: String) {
+        viewModelScope.launch {
+            databaseRepository.getUser(userId).collect { result ->
+                if (result is Resource.Success) {
+                    _quotedPostUser.value = result.data
+                }
+            }
+        }
+    }
+
+    fun createPost(content: String, imageUri: Uri? = null) {
+        viewModelScope.launch {
+            _createState.value = Resource.Loading
+            authRepository.getUser().collect { authResult ->
+                when (authResult) {
+                    is Resource.Success -> {
+                        val userId = authResult.data.id
+
+                        if (imageUri != null) {
+                            val storageResult = storageRepository.uploadMedia(imageUri, Constants.POST_IMAGES_BUCKET_ID)
+                            when (storageResult) {
+                                is Resource.Success -> savePostToDatabase(userId, content, storageResult.data)
+                                is Resource.Error -> _createState.value = Resource.Error(storageResult.message)
+                                is Resource.Loading -> {}
+                            }
+                        } else {
+                            savePostToDatabase(userId, content, "")
+                        }
+                    }
+                    is Resource.Error -> {
+                        _createState.value = Resource.Error("Error de autenticación")
+                    }
+                    is Resource.Loading -> {}
+                }
+            }
+        }
+    }
+
+    private suspend fun savePostToDatabase(userId: String, content: String, imageUrl: String) {
+        val post = Post(
+            userId = userId,
+            content = content,
+            imageUrl = imageUrl,
+            originalPostId = quoteId ?: "" // FASE 15: Vinculamos el post original
+        )
+        databaseRepository.createPost(post).collect { dbResult ->
+            _createState.value = dbResult
+        }
+    }
+
+    fun resetState() {
+        _createState.value = null
     }
 }

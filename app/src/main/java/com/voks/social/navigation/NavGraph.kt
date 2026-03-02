@@ -68,26 +68,36 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
             )
         }
 
-        composable(route = Screen.Home.route) {
+        composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                // FASE 15: Pasamos el quoteId (si existe) a la ruta
+                onNavigateToCreatePost = { quoteId ->
+                    navController.navigate(Screen.CreatePost.createRoute(quoteId))
+                },
                 onNavigateToProfile = { userId ->
-                    // FASE 11: Pasamos el ID del usuario al navegar
                     navController.navigate(Screen.Profile.createRoute(userId))
                 },
                 onLogout = {
-                    navController.navigate(Screen.Login.route) {
+                    navController.navigate(Screen.Welcome.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                // NUEVO FASE 14: Navegación al detalle del post
                 onNavigateToPostDetail = { postId ->
                     navController.navigate(Screen.PostDetail.createRoute(postId))
                 }
             )
         }
 
-        composable(route = Screen.CreatePost.route) {
+        composable(
+            route = Screen.CreatePost.route,
+            arguments = listOf(
+                navArgument("quoteId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
             CreatePostScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -96,11 +106,13 @@ fun NavGraph(startDestination: String = Screen.Welcome.route) {
         // FASE 11: Soporte para argumentos en la ruta del perfil
         composable(
             route = Screen.Profile.route,
-            arguments = listOf(navArgument("userId") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            })
+            arguments = listOf(
+                navArgument("userId") { 
+                    type = NavType.StringType 
+                    nullable = true 
+                    defaultValue = null 
+                }
+            )
         ) {
             ProfileScreen(
                 navController = navController

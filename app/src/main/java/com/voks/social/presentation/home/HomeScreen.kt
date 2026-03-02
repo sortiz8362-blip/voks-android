@@ -36,10 +36,10 @@ import com.voks.social.core.utils.Resource
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToCreatePost: () -> Unit,
+    onNavigateToCreatePost: (String?) -> Unit,
     onNavigateToProfile: (String?) -> Unit,
     onLogout: () -> Unit,
-    onNavigateToPostDetail: (String) -> Unit, // NUEVO FASE 14
+    onNavigateToPostDetail: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val feedState by viewModel.feedState.collectAsState()
@@ -117,7 +117,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToCreatePost,
+                onClick = { onNavigateToCreatePost(null) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
@@ -150,12 +150,12 @@ fun HomeScreen(
                             items(state.data) { postItem ->
                                 PostCard(
                                     postItem = postItem,
-                                    // FASE 14: Mandar al Detalle del Post
-                                    onPostClick = { onNavigateToPostDetail(postItem.post.id) },
+                                    onPostClick = { postId -> onNavigateToPostDetail(postId) },
                                     onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) },
-                                    onLikeClick = { viewModel.toggleLike(postItem.post.id) },
-                                    onBookmarkClick = { viewModel.toggleBookmark(postItem.post.id) },
-                                    onCommentClick = { onNavigateToPostDetail(postItem.post.id) } // NUEVO FASE 14
+                                    onLikeClick = { postId -> viewModel.toggleLike(postId) },
+                                    onBookmarkClick = { postId -> viewModel.toggleBookmark(postId) },
+                                    onCommentClick = { postId -> onNavigateToPostDetail(postId) },
+                                    onRepostClick = { postId -> onNavigateToCreatePost(postId) } // FASE 15: Ahora navega para citar
                                 )
                             }
                         }

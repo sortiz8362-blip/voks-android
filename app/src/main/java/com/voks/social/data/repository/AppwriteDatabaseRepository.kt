@@ -29,7 +29,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "bio" to user.bio,
                 "followers" to user.followers,
                 "following" to user.following,
-                "bookmarks" to user.bookmarks // FASE 13
+                "bookmarks" to user.bookmarks
             )
             databases.createDocument(
                 databaseId = Constants.DATABASE_ID,
@@ -61,7 +61,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 bio = data["bio"]?.toString() ?: "",
                 followers = (data["followers"] as? List<*>)?.map { it.toString() } ?: emptyList(),
                 following = (data["following"] as? List<*>)?.map { it.toString() } ?: emptyList(),
-                bookmarks = (data["bookmarks"] as? List<*>)?.map { it.toString() } ?: emptyList(), // FASE 13
+                bookmarks = (data["bookmarks"] as? List<*>)?.map { it.toString() } ?: emptyList(),
                 createdAt = document.createdAt
             )
             emit(Resource.Success(user))
@@ -156,7 +156,9 @@ class AppwriteDatabaseRepository @Inject constructor(
                 "userId" to post.userId,
                 "content" to post.content,
                 "imageUrl" to post.imageUrl,
-                "likes" to post.likes
+                "likes" to post.likes,
+                "reposts" to post.reposts,
+                "originalPostId" to post.originalPostId
             )
             databases.createDocument(
                 databaseId = Constants.DATABASE_ID,
@@ -187,6 +189,8 @@ class AppwriteDatabaseRepository @Inject constructor(
                     content = data["content"]?.toString() ?: "",
                     imageUrl = data["imageUrl"]?.toString() ?: "",
                     likes = (data["likes"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                    reposts = (data["reposts"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                    originalPostId = data["originalPostId"]?.toString() ?: "",
                     createdAt = document.createdAt
                 )
             }
@@ -196,7 +200,6 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
-    // NUEVO FASE 14: Obtener un solo Post
     override fun getPost(postId: String): Flow<Resource<Post>> = flow {
         emit(Resource.Loading)
         try {
@@ -212,6 +215,8 @@ class AppwriteDatabaseRepository @Inject constructor(
                 content = data["content"]?.toString() ?: "",
                 imageUrl = data["imageUrl"]?.toString() ?: "",
                 likes = (data["likes"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                reposts = (data["reposts"] as? List<*>)?.map { it.toString() } ?: emptyList(),
+                originalPostId = data["originalPostId"]?.toString() ?: "",
                 createdAt = document.createdAt
             )
             emit(Resource.Success(post))
@@ -255,6 +260,60 @@ class AppwriteDatabaseRepository @Inject constructor(
         }
     }
 
+    // --- FASE 15: Reposts ---
+    override fun toggleRepost(postId: String, userId: String): Flow<Resource<Unit>> = flow {
+        try {
+            // 1. Obtenemos el post original para actualizar su contador
+            val doc = databases.getDocument(Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, postId)
+            val reposts = (doc.data["reposts"] as? List<*>)?.map { it.toString() }?.toMutableList() ?: mutableListOf()
+
+            val isReposting = !reposts.contains(userId)
+
+            if (isReposting) {
+                reposts.add(userId)
+                // 2. Creamos el nuevo documento "Repost" para propagarlo en el Feed de los seguidores
+                val mapData = mapOf(
+                    "userId" to userId,
+                    "content" to "",
+                    "imageUrl" to "",
+                    "likes" to emptyList<String>(),
+                    "reposts" to emptyList<String>(),
+                    "originalPostId" to postId
+                )
+                databases.createDocument(
+                    databaseId = Constants.DATABASE_ID,
+                    collectionId = Constants.POSTS_COLLECTION_ID,
+                    documentId = ID.unique(),
+                    data = mapData
+                )
+            } else {
+                reposts.remove(userId)
+                // 3. Deshacer el Repost: Lo buscamos localmente para evitar errores de índices en Appwrite
+                val result = databases.listDocuments(
+                    Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID,
+                    listOf(Query.orderDesc("\$createdAt"))
+                )
+                val repostDoc = result.documents.find {
+                    it.data["userId"]?.toString() == userId &&
+                            it.data["originalPostId"]?.toString() == postId &&
+                            it.data["content"]?.toString().isNullOrEmpty()
+                }
+                repostDoc?.let {
+                    databases.deleteDocument(Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, it.id)
+                }
+            }
+
+            // 4. Actualizamos la matriz de reposts en el documento original
+            databases.updateDocument(
+                Constants.DATABASE_ID, Constants.POSTS_COLLECTION_ID, postId,
+                data = mapOf("reposts" to reposts)
+            )
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Error al procesar el Repost"))
+        }
+    }
+
     // --- FASE 14: Comentarios ---
     override fun addComment(comment: Comment): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading)
@@ -284,7 +343,7 @@ class AppwriteDatabaseRepository @Inject constructor(
                 collectionId = Constants.COMMENTS_COLLECTION_ID,
                 queries = listOf(
                     Query.equal("postId", postId),
-                    Query.orderAsc("\$createdAt") // Mostramos los comentarios en orden cronológico
+                    Query.orderAsc("\$createdAt")
                 )
             )
 
