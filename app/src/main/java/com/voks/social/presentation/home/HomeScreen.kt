@@ -1,6 +1,7 @@
 package com.voks.social.presentation.home
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,10 +14,13 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -33,48 +37,84 @@ import com.voks.social.core.utils.Resource
 @Composable
 fun HomeScreen(
     onNavigateToCreatePost: () -> Unit,
-    onNavigateToProfile: (String?) -> Unit, // FASE 11: Ahora recibe un String opcional
+    onNavigateToProfile: (String?) -> Unit,
     onLogout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val feedState by viewModel.feedState.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState() // FASE 12: Estado de la pestaña
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Inicio",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+            // FASE 12: Agrupamos el TopAppBar y el TabRow en una sola columna superior
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Inicio",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { onNavigateToProfile(null) }) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Ir a mi Perfil"
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.refreshFeed() }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Recargar feed",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = onLogout) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Cerrar sesión",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                )
+
+                // FASE 12: Pestañas "Para ti" y "Siguiendo"
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    divider = {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    }
+                ) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { viewModel.setTab(0) },
+                        text = {
+                            Text(
+                                "Para ti",
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     )
-                },
-                navigationIcon = {
-                    // FASE 11: Navegar a NUESTRO perfil enviando "null"
-                    IconButton(onClick = { onNavigateToProfile(null) }) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Ir a mi Perfil"
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.refreshFeed() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Recargar feed",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Cerrar sesión",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { viewModel.setTab(1) },
+                        text = {
+                            Text(
+                                "Siguiendo",
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
                 }
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -97,8 +137,10 @@ fun HomeScreen(
                 }
                 is Resource.Success -> {
                     if (state.data.isEmpty()) {
+                        // Mensaje dinámico dependiendo de la pestaña
                         Text(
-                            text = "Aún no hay publicaciones.\n¡Sé el primero en escribir algo!",
+                            text = if (selectedTab == 0) "Aún no hay publicaciones.\n¡Sé el primero en escribir algo!"
+                            else "No hay publicaciones recientes.\n¡Empieza a seguir a otras personas!",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.align(Alignment.Center),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -111,7 +153,6 @@ fun HomeScreen(
                                 PostCard(
                                     postItem = postItem,
                                     onPostClick = { /* Fase Futura */ },
-                                    // FASE 11: Pasamos el ID del usuario al que le damos clic
                                     onUserClick = { clickedUserId -> onNavigateToProfile(clickedUserId) }
                                 )
                             }
